@@ -63,10 +63,6 @@ class RandomAgent:
         """
         return np.ones(len(self.mask))
     
-    def render(self):
-        # TODO: Add a method to render an episode
-        raise NotImplementedError
-
 
 class MyEnv(gym.Env):
     def __init__(self, X, y):
@@ -208,6 +204,11 @@ class MyEnv(gym.Env):
         :return `bool`: Boolean indicating if the episode must end up now
         """
         return False if self.steps <= n else True
+
+    def render(self):
+        super().render()
+        # TODO: Add a method to render an episode
+        raise NotImplementedError
 
     def reset(self, seed=None):
         super().reset(seed=seed)
