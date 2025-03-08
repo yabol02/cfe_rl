@@ -42,9 +42,7 @@ class RandomAgent:
 
     def step(self, observation):
         self.observation = observation
-        action = (
-            self.decide()
-        )  # TODO: This mehod must somehow receive the observation from the environment
+        action = self.decide()  # TODO: This mehod must somehow receive the observation from the environment
         print(action)
         new_mask = self.map_action(action)
         return new_mask
@@ -53,14 +51,20 @@ class RandomAgent:
         """
         Resets the mask to its initial state (all ones)
         """
-        self.mask = np.ones(len(self.mask))
+        return np.ones(len(self.mask))
+    
+    def render(self):
+        # TODO: Add a method to render an episode
+        raise NotImplementedError
 
 
 class MyEnv(gym.Env):
-    def __init__(self, x1, x2):
+    def __init__(self, X, y):
         super().__init__()
-        self.x1 = x1
-        self.x2 = x2
+        self.data = np.squeeze(X)
+        self.labels = np.squeeze(y)
+        self.x1 = self.get_sample()
+        self.x2 = self.get_nun()
         self.mask = np.ones(self.x1.shape[0], dtype=np.bool_)
         self.steps = 0
         self.last_reward = 0
@@ -74,19 +78,42 @@ class MyEnv(gym.Env):
                     low=-np.inf, high=np.inf, shape=self.x2.shape, dtype=np.float64
                 ),
                 "mask": gym.spaces.MultiBinary(n=self.mask.shape[0]),
-                # "last_reward": gym.spaces.Box(low=-1, high=1, shape=1, dtype=np.float64) # TODO: See how affects pass this
+                # "last_reward": gym.spaces.Box(low=-1, high=1, shape=1, dtype=np.float64) # TODO: See how affects passing this to the agent
             }
         )
 
         self.action_space = gym.spaces.MultiBinary(n=self.mask.shape[0])
 
-    def get_sample(self):
-        # TODO: By now, the class receives always the same 2 signals. The objective is to pass
-        raise NotImplementedError
+    def get_sample(self, label=1):
+        """
+        Gets a random sample of the data belonging to the class specified by target_label
+
+        :param `data`: numpy array with the data
+        :param `labels`: numpy array with the labels corresponding to the data
+        :param `target_label`: The label of the class from which a random sample is to be obtained
+        :return: A random sample of the specified class
+        :raises `ValueError`: If there is no data for the specified class
+        """
+        if label not in self.labels:
+            raise ValueError(f'{label} not in labels: {list(set(self.labels.unique()))}')
+        class_indices = np.where(self.labels == label)[0]
+        index = np.random.choice(class_indices)
+        return self.data[index]
 
     def get_nun(self):
-        # TODO: By now, the class receives always the same 2 signals. The objective is to pass it 2 datasets and obtain the NUN for each signal.
-        raise NotImplementedError
+        """
+        Finds the NUN (Nearest Unlike Neighbor) for self.x1
+
+        :return: The nearest unlike neighbor of self.x1
+        :raises ValueError: If self.x1 is not assigned
+        """
+        if self.x1 is None:
+            raise ValueError('X1 is not assigned. First you must call self.get_sample()')
+        x1_label = self.labels[(self.data==self.x1).all(axis=1)]
+        unlike_indices = np.where(self.labels != x1_label)[0]
+        distances = np.linalg.norm(self.data[unlike_indices] - self.x1, axis=1)
+        nun_index = unlike_indices[np.argmin(distances)]
+        return self.data[nun_index]
 
     def step(self, action):
         """
@@ -102,6 +129,7 @@ class MyEnv(gym.Env):
         self.steps += 1
         self.renew_mask(action)
         new_signal = self.compute_cfe()
+
         observation = {"original": self.x1, "nun": new_signal, "mask": self.mask}
 
         reward = self.reward(new_signal)
@@ -180,6 +208,8 @@ class MyEnv(gym.Env):
         super().reset(seed=seed)
         self.steps = 0
         self.last_reward = 0
+        self.x1 = self.get_sample()
+        self.x2 = self.get_nun()
         self.mask = np.ones(self.x1.shape[0], dtype=np.bool_)
         observation = {"original": self.x1, "nun": self.x2, "mask": self.mask}
         info = self.get_info()
@@ -189,10 +219,9 @@ class MyEnv(gym.Env):
 from time import sleep
 
 if __name__ == "__main__":
-    x1 = np.random.rand(10)
-    x2 = np.random.rand(10)
-    env = MyEnv(x1, x2)
-    agent = RandomAgent(x1.shape[0])
+    X_train, y_train, X_test, y_test = utils.load_dataset('chinatown')
+    env = MyEnv(X_train, y_train)
+    agent = RandomAgent(X_train.shape[1])
     check_env(env)
     obs = env.reset()
     done, truncated = False, False
