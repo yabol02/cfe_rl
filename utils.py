@@ -6,7 +6,7 @@ def load_dataset(dataset: str) -> tp.Tuple[np.ndarray, np.ndarray, np.ndarray, n
     """
     Loads the dataset from the specified path.
 
-    :param dataset: Name of the dataset. The files must follow the path `./data/<dataset>`
+    :param `dataset`: Name of the dataset. The files must follow the path `./data/<dataset>`
     :return: A tuple containing (X_train, y_train, X_test, y_test)
     :raises FileNotFoundError: If any of the required files are missing
     :raises ValueError: If the dataset name is invalid
@@ -31,8 +31,8 @@ def adversarial_loss(x, y_nun, model):
     """
     Classifier's probability for the desired class y_nun given x'
 
-    :param x: New generated sample
-    :param y_nun: Label of the desired class
+    :param `x`: New generated sample
+    :param `y_nun`: Label of the desired class
     :return: Probability prediction of the model 
     """
     raise NotImplementedError
@@ -41,7 +41,7 @@ def l0_norm(mask: np.ndarray) -> int:
     """
     Calculates the L0 norm of a mask
 
-    :param mask: Numpy array representing the mask
+    :param `mask`: Numpy array representing the mask
     :return: Number of non-zero elements in the mask
     """
     return np.count_nonzero(mask)
@@ -50,7 +50,7 @@ def sparsity_loss(mask: np.ndarray) -> float:
     """
     Calculates the sparsity loss of a mask
 
-    :param mask: Numpy array representing the mask
+    :param `mask`: Numpy array representing the mask
     :return: Sparsity loss
     :raises ValueError: If the mask is empty
     """
@@ -62,7 +62,7 @@ def num_subsequences(mask: np.ndarray) -> int:
     """
     Calculates the number of subsequences in a mask
 
-    :param mask: Numpy array representing the mask
+    :param `mask`: Numpy array representing the mask
     :return: Number of subsequences
     """
     return np.count_nonzero(np.diff(mask))
@@ -71,8 +71,8 @@ def contiguity_loss(mask: np.ndarray, gamma: float = 0.25) -> float:
     """
     Calculates the contiguity loss of a mask
 
-    :param mask: Numpy array representing the mask
-    :param gamma: Adjustment parameter, default is 0.25
+    :param `mask`: Numpy array representing the mask
+    :param `gamma`: Adjustment parameter, default is 0.25
     :return: Contiguity loss
     :raises ValueError: If the mask is empty
     """
@@ -84,8 +84,8 @@ def l1_norm(x: tp.Union[np.ndarray, list], cfe: tp.Union[np.ndarray, list]) -> f
     """
     Calculates the L1 norm between two arrays
 
-    :param x: First array
-    :param cfe: Second array
+    :param `x`: First array
+    :param `cfe`: Second array
     :return: L1 norm between the two arrays
     """
     x = np.asarray(x).flatten()
@@ -96,8 +96,8 @@ def l2_norm(x: tp.Union[np.ndarray, list], cfe: tp.Union[np.ndarray, list]) -> f
     """
     Calculates the L2 norm between two arrays
 
-    :param x: First array
-    :param cfe: Second array
+    :param `x`: First array
+    :param `cfe`: Second array
     :return: L2 norm between the two arrays
     """
     x = np.asarray(x).flatten()

@@ -1,26 +1,29 @@
 import utils
+import typing as tp
+import numpy as np
 import gymnasium as gym
 from stable_baselines3.common.env_checker import check_env
-import numpy as np
 
-
+# TODO: Create a base agent class
 class RandomAgent:
     """
-    :param mask_length: The length of the mask that the agent will modify
-    :param kwargs: Additional configurations
-    """
+    Agent that makes random decisions on a mask.
 
-    def __init__(self, mask_length, **kwargs):
-        # TODO: Add the model to the class constructor => self.model = model
+    :param `mask_length`: Length of the mask that the agent will modify.
+    :param `model`: Classification model for decision making (optional).
+    :param `kwargs`: Additional configurations.
+    """
+    # TODO: Add the classifier to the class constructor (for other agents) => self.model = model
+    def __init__(self, mask_length: int, **kwargs):
         self.configuration = kwargs
         self.observation = None
         self.mask = np.ones(mask_length)
 
-    def decide(self):
+    def decide(self) -> tp.List:
         """
         Makes a random decision on where to start and the size of the transformation
-        :param observation:
-        :return: A list action [start, size]
+
+        :return `action`: A list action of the form [start, size]
         """
         # TODO: Add that the observations be passed to the model for decision making => self.model.predict(observation)
         start = int(np.random.uniform(0, 1) * len(self.mask))
@@ -28,11 +31,12 @@ class RandomAgent:
         action = [start, size]
         return action
 
-    def map_action(self, action):
+    def map_action(self, action: tp.Tuple[int, int]) -> np.ndarray:
         """
         Transforms the mask according to the given action
 
-        param action: Shape tuple (start of transformation, size of transformation)
+        :param `action`: Shape tuple (start of transformation, size of transformation)
+        :return: The modified mask
         """
         start, size = action
         start = max(0, start)
@@ -41,6 +45,12 @@ class RandomAgent:
         return self.mask
 
     def step(self, observation):
+        """
+        Performs a step of the agent with the given observation.
+
+        :param `observation`: Observation from the environment.
+        :return `new_mask`: The new modified mask.
+        """
         self.observation = observation
         action = self.decide()  # TODO: This mehod must somehow receive the observation from the environment
         print(action)
@@ -119,25 +129,21 @@ class MyEnv(gym.Env):
         """
         Executes a simulation step
 
-        :param action: Tuple of the form (beginning of the transformation, size of the transformation)
-        :return observation: The updated state of the environment after the action
-        :return reward: A scalar value indicating the reward for the current step
-        :return done: A boolean indicating if the episode has finished
-        :return truncated: A boolean indicating if the episode was cut short
-        :return info: A dictionary with additional information
+        :param `action`: Tuple of the form (beginning of the transformation, size of the transformation)
+        :return `observation`: The updated state of the environment after the action
+        :return `reward`: A scalar value indicating the reward for the current step
+        :return `done`: A boolean indicating if the episode has finished
+        :return `truncated`: A boolean indicating if the episode was cut short
+        :return `info`: A dictionary with additional information
         """
         self.steps += 1
         self.renew_mask(action)
         new_signal = self.compute_cfe()
 
         observation = {"original": self.x1, "nun": new_signal, "mask": self.mask}
-
         reward = self.reward(new_signal)
-
         done = self.check_done()
-
         truncated = self.check_end(10)
-
         info = self.get_info()
 
         return observation, reward, done, truncated, info
@@ -152,7 +158,7 @@ class MyEnv(gym.Env):
         """
         Obtains the new mask by applying the mask
 
-        :return new_signal: The new signal
+        :return `new_signal`: The new signal
         """
         return np.where(self.mask == 1, self.x2, self.x1)
 
@@ -160,8 +166,8 @@ class MyEnv(gym.Env):
         """
         Calculate reward based on the current state.
 
-        :param new_signal: The current modified signal
-        :return reward: Reward value for the step
+        :param `new_signal`: The current modified signal
+        :return `reward`: Reward value for the step
         """
         # TODO: Define the full reward functions with the loss metrics in "utils.py"
         total_reward = 0
@@ -175,7 +181,7 @@ class MyEnv(gym.Env):
         """
         Verifies wheter the episode ends up naturally
 
-        :return bool: Boolean indicating if the episode has ended or not
+        :return `bool`: Boolean indicating if the episode has ended or not
         """
         # TODO: Define the stop conditions (I guess we will not stop the training, only if the CFE is very close)
         # An option is something like that: np.allclose(self.x1, self.x2, atol=1e-3)
@@ -185,7 +191,7 @@ class MyEnv(gym.Env):
         """
         Obtains the information of the step
 
-        :return info: Experience tuple of the step, wich is of the form => {S_t, A_t, R_t+1, S_t+1} <--- Add more info???
+        :return `info`: Experience tuple of the step, wich is of the form => {S_t, A_t, R_t+1, S_t+1} <--- Add more info???
         """
         # TODO: Complete the method
         return {
@@ -198,13 +204,12 @@ class MyEnv(gym.Env):
         """
         Verifies wether the episode is terminated by external boundary
 
-        :param n: Number of steps to compute
-        :return bool: Boolean indicating if the episode must end up now
+        :param `n`: Number of steps to compute
+        :return `bool`: Boolean indicating if the episode must end up now
         """
         return False if self.steps <= n else True
 
     def reset(self, seed=None):
-        # TODO: The method must return 2 new signals, not always the same ones
         super().reset(seed=seed)
         self.steps = 0
         self.last_reward = 0
@@ -215,8 +220,6 @@ class MyEnv(gym.Env):
         info = self.get_info()
         return observation, info
 
-
-from time import sleep
 
 if __name__ == "__main__":
     X_train, y_train, X_test, y_test = utils.load_dataset('chinatown')
@@ -229,7 +232,6 @@ if __name__ == "__main__":
         action = agent.step(obs)
         obs, reward, done, truncated, info = env.step(action)
         print(f"{info['step']}: {info['mask']} ==> {reward}")
-        sleep(1e-1)
     #     print("Observación:", obs)
     #     print("Recompensa:", reward)
     #     print("Done:", done)
