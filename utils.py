@@ -1,4 +1,6 @@
 import os
+import torch
+import tensorflow as tf
 import typing as tp
 import numpy as np
 
@@ -104,3 +106,36 @@ def l2_norm(x: tp.Union[np.ndarray, list], cfe: tp.Union[np.ndarray, list]) -> f
     cfe = np.asarray(cfe).flatten()
     return np.linalg.norm(x - cfe, ord=2)
 
+def load_model(dataset, experiment, t='best'):
+    """
+    Loads a trained model from the specified experiment based on the chosen criteria.
+
+    This function loads a model from the specified dataset and experiment folder. 
+    The experiment can be selected based on various criteria: 'best', 'random', 'worst', 'median', or an integer index to choose a specific experiment.
+
+    :param dataset: The name of the dataset
+    :param experiment: The name of the experiment folder within the dataset
+    :param t: The criteria for selecting the experiment. Can be 'best', 'random', 'worst', 'median' or an integer index. Default is 'best'
+    :return `model`: The trained model loaded from the specified experiment
+    :raises ValueError: If `t` is not one of the valid selection methods or if an invalid index is provided
+    """
+    from pandas import read_excel
+    exp_path = os.path.join('models', dataset, experiment)
+    df = read_excel(f'{os.path.join(exp_path, "all_results.xlsx")}')
+    if t == 'best':
+        exp_hash = df.experiment_hash.iloc[0]
+    elif t == 'random':
+        exp_hash = df.experiment_hash.sample(n=1).iloc[0]
+    elif t == 'worst':
+        exp_hash = df.experiment_hash.iloc[-1]
+    elif t == 'median':
+        exp_hash = df.experiment_hash.iloc[len(df)//2]
+    elif t.isdigit():
+        idx = int(t)
+        if idx < 0 or idx >= len(df):
+            raise ValueError(f"Index {idx} out of range. Valid range: 0-{len(df)-1}")
+        exp_hash = df.experiment_hash.iloc[idx]
+    else:
+        raise ValueError('The way to choose an experiment (t) should be one of these: best, random, worst, median or a number.')
+    model = torch.load(os.path.join(exp_path, exp_hash, 'model.pth'), weights_only=False)
+    return model
