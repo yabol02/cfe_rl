@@ -1,0 +1,14 @@
+{
+  "experiment_name": "fcn",
+
+  "seed": [0, 1, 2, 3, 4, 5, 6, 7, 8, 9],
+
+  "scaling": ["standard"],
+  "channels": [[128, 256, 128]],
+  "kernel_sizes": [[8, 5, 3], [20, 20, 20]],
+  "batch_size": [64],
+  "learning_rate": [1e-3],
+  "epochs": 500,
+  "es_patience": 50,
+  "lr_patience": 15
+}
