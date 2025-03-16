@@ -3,9 +3,9 @@ import matplotlib.pyplot as plt
 import pandas as pd
 
 
-def plot_signal(X, X2, mask):
+def plot_signal(X, X2, mask, dataset=None):
     mod = X.copy()
-    mod[mascara] = X2[mascara]
+    mod[mask] = X2[mask]
     plt.plot(X2, c="k", label="NUN")
     plt.plot(mod, c="r", label="CFE")
     plt.plot(X, c="b", label="Original")
@@ -16,7 +16,7 @@ def plot_signal(X, X2, mask):
         plt.axvspan(x-(1 if x>0 else 0), y, color="red", alpha=0.1)
 
     plt.legend()
-    plt.title("CFE")
+    plt.title(f"CFE{f' - {dataset}' if dataset else ''}")
     plt.show()
 
 
@@ -40,7 +40,7 @@ def extract_submasks(mask):
     return submasks
 
 
-dataset = "chinatown"
+dataset = "UCR/ecg200"
 X = np.load(f"./data/{dataset}/X_train.npy", allow_pickle=True)
 Y = np.load(f"./data/{dataset}/Y_train.npy", allow_pickle=True)
 mascara = np.random.choice([True, False], size=X.shape[1]).tolist()
@@ -68,5 +68,5 @@ X_samples1 = X[Y == 1]
 X_samples2 = X[Y != 1]
 X1 = X_samples1[np.random.choice(X_samples1.shape[0], size=1, replace=False)][0].flatten()
 X2 = X_samples2[np.random.choice(X_samples2.shape[0], size=1, replace=False)][0].flatten()
-plot_signal(X1, X2, mascara)
+plot_signal(X1, X2, mascara, dataset)
 
