@@ -5,6 +5,7 @@ import typing as tp
 import numpy as np
 import matplotlib.pyplot as plt
 from torch.nn import functional
+from json import JSONEncoder
 
 
 def predict_proba(model, data, device="cpu"):
@@ -254,3 +255,9 @@ def load_model(dataset, experiment, t="best"):
         os.path.join(exp_path, exp_hash, "model.pth"), weights_only=False
     )
     return model
+
+class NumpyArrayEncoder(JSONEncoder):
+    def default(self, obj):
+        if isinstance(obj, np.ndarray):
+            return obj.tolist()
+        return JSONEncoder.default(self, obj)
