@@ -24,11 +24,12 @@ class DataManager:
         self.X_train, self.y_train_true, self.X_test, self.y_test_true = (
             self.load_dataset(dataset, scaling, backend)
         )
+        self.name = dataset
         self.model = model
         self.y_train_model = predict_proba(self.model, self.X_train)[1]
         self.y_test_model = predict_proba(self.model, self.X_test)[1]
-        self.train_nuns = self.compute_nuns()
-        self.test_nuns = self.compute_nuns(train=False)
+        self.nuns_train = self.compute_nuns(train=True, preds=True)
+        self.nuns_test = self.compute_nuns(train=False, preds=True)
 
     def load_dataset(
         self, dataset: str, scaling: str = "none", backend: str = "torch"
@@ -140,15 +141,15 @@ class DataManager:
         nuns = dict()
         for i, sample in enumerate(data):
             sample_label = (
-                self.get_true_label(sample)
+                self.get_true_label(sample, True if train else False)
                 if not preds
-                else self.get_predicted_label(sample)
+                else self.get_predicted_label(sample, True if train else False)
             )
             unlike_indices = np.where(labels != sample_label)[0]
             distances = np.linalg.norm(data[unlike_indices] - sample, ord=2, axis=2)
             sorted_idxs = unlike_indices[np.argsort(distances, axis=0)[::-1]].flatten()
             nuns[i] = data[sorted_idxs]
-            
+
         return nuns
 
     def get_sample(self, label=1, index=None, test=False, failed=False):
@@ -159,7 +160,7 @@ class DataManager:
         :param `index`: The specific index of the sample to retrieve. If None, a random sample is returned, default is None
         :param `test`: If True, gets the sample from the test data, otherwise from training data, default is False
         :param `failed`: Parameter is not used in the current implementation
-        :return `sample`: A sample of the specified class
+        :return `sample`: A sample of the specified class (converted to a NumPy Array)
         :raises `ValueError`: If there is no data for the specified class or if the index is out of bounds
         """
         data = self.X_test if test else self.X_train
@@ -177,7 +178,7 @@ class DataManager:
 
         index = np.random.choice(class_indices)
         sample = data[index : index + 1]
-        return sample
+        return sample.detach().cpu().numpy()
 
     def get_nun(self, sample=None, sample_index=None, train=True, k=1):
         """
@@ -187,7 +188,7 @@ class DataManager:
         :param `sample_index`: The index of the sample in the dataset. If None, sample must be provided, default is None
         :param `train`: Whether to search in the training set (True) or test set (False), default is True
         :param `k`: Number of nearest unlike neighbors to return, default is 1
-        :return `nun`: The k nearest unlike neighbors of the sample
+        :return `nun`: The k nearest unlike neighbors of the sample (converted to a NumPy Array)
         :raises `ValueError`: If neither sample nor sample_index is provided or if the sample index is not found
         """
         if sample is None and sample_index is None:
@@ -202,13 +203,13 @@ class DataManager:
             else:
                 sample_index = np.where(np.all(data == sample, axis=2))[0][0]
 
-        nuns_dict = self.train_nuns if train else self.test_nuns
+        nuns_dict = self.nuns_train if train else self.nuns_test
         if sample_index not in nuns_dict:
             raise ValueError(
                 f"Sample index {sample_index} not found in the {'training' if train else 'test'} set"
             )
 
-        return nuns_dict[sample_index][k - 1 : k]
+        return nuns_dict[sample_index][k - 1 : k].detach().cpu().numpy()
 
     def get_true_label(self, sample, train=True):
         """
@@ -232,15 +233,17 @@ class DataManager:
         :return `label`: The predicted label for the given sample.
         :raises `ValueError`: If there are no predictions available for the specified set
         """
-        if train and not self.y_train_model:
+        if train and self.y_train_model is None:
             raise ValueError(
                 "There are no train labels predicted by a model. You must then call `compute_predictions`"
             )
-        elif not train and not self.y_test_model:
+        elif not train and self.y_test_model is None:
             raise ValueError(
                 "There are no test labels predicted by a model. You must then call `compute_predictions`"
             )
         data = self.X_train if train else self.X_test
         labels = self.y_train_model if train else self.y_test_model
-        label = labels[np.all(data == sample, axis=2).squeeze()][0]
+        label = labels[(data == sample).all(dim=2).squeeze()]
         return label
+
+    # TODO: Make a method that returns a sample and its NUNs
