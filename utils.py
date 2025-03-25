@@ -173,18 +173,17 @@ def plot_signal(X, X2, mask, ax, dataset=None):
     
     mod = X.copy()
     mod[mask] = X2[mask]
-
+    ax.clear()
     ax.plot(X2, c="k", label="NUN")
-    ax.plot(mod, c="r", label="CFE")
     ax.plot(X, c="b", label="Original")
+    ax.plot(mod, c="r", label="CFE")
 
     submasks = extract_submasks(mask)
     for subm in submasks:
         x, y = subm
-        ax.axvspan(x - (1 if x > 0 else 0), y, color="red", alpha=0.1)
+        ax.axvspan(x - (1 if x > 0 else 0), y - (1 if y >= len(X) else 0), color="red", alpha=0.1)
 
-    ax.legend()
-    ax.set_title(f"CFE{f' - {dataset}' if dataset else ''}")
+    ax.set_title(f"CFE{f' - {dataset}' if dataset else ''}", fontsize=14, fontweight='bold')
 
 
 def extract_submasks(mask):

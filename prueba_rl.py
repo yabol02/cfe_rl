@@ -100,7 +100,7 @@ class MyEnv(gym.Env):
         self.action_space = gym.spaces.MultiBinary(n=self.mask.shape[0])
         self.experiment = {
             "experiment": self.name,
-            "dataset": data.name,
+            "dataset": self.data,
             "sample": self.x1,
             "nun": self.x2,
             "datetime_start": datetime.now().strftime("%d/%m/%Y %H:%M:%S"),
@@ -150,9 +150,9 @@ class MyEnv(gym.Env):
         observation = {"original": self.x1, "nun": new_signal, "mask": self.mask}
         reward = self.reward(new_signal)
         done = self.check_done()
-        truncated = self.check_end(1000)
+        truncated = self.check_end(100)
         info = self._get_info()
-        self.experiment["steps"].append(info)
+        self.experiment["steps"].append(info.copy())
 
         return observation, reward, done, truncated, info
 
@@ -211,7 +211,7 @@ class MyEnv(gym.Env):
         # TODO: Complete the method
         return {
             "step": self.steps,
-            "mask": self.mask,
+            "mask": self.mask.copy(),
             "reward": self.last_reward,
             # "loss": ...,
         }
@@ -248,7 +248,7 @@ class MyEnv(gym.Env):
             self.name = new_name
         self.experiment = {
             "experiment": self.name,
-            "dataset": data.name,
+            "dataset": self.data,
             "sample": self.x1,
             "nun": self.x2,
             "datetime_start": datetime.now().strftime("%d/%m/%Y %H:%M:%S"),

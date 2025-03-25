@@ -175,6 +175,9 @@ class DataManager:
                 raise ValueError(f"Index {index} not found in class {label}")
             sample = data[index : index + 1]
             return sample
+        
+        # TODO: Implement ´failed´ functionality.
+        # This will return a sample that the model failed predicting it.
 
         index = np.random.choice(class_indices)
         sample = data[index : index + 1]
