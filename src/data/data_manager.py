@@ -1,7 +1,7 @@
 import os
 import typing as tp
 import numpy as np
-from utils import predict_proba
+from ..utils import predict_proba
 
 try:
     from torch import tensor, nn

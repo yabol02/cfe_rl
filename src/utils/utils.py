@@ -1,9 +1,7 @@
 import os
 import torch
-import tensorflow as tf
 import typing as tp
 import numpy as np
-import matplotlib.pyplot as plt
 from torch.nn import functional
 from json import JSONEncoder
 
@@ -46,42 +44,6 @@ def predict_proba(model, data, device="cpu"):
     )
 
 
-def adversarial_loss(x, y_nun, model, device="cpu"):
-    """
-    Classifier's probability for the desired class y_nun given x'.
-
-    :param `x`: New generated sample
-    :param `y_nun`: Label of the desired class
-    :return `prob`: Probability prediction of the model
-    """
-    probabilities, pred_class = predict_proba(model, x, device)
-    prob = probabilities[0, y_nun].item()
-    return prob, pred_class
-
-
-def l0_norm(mask: np.ndarray) -> int:
-    """
-    Calculates the L0 norm of a mask.
-
-    :param `mask`: Numpy array representing the mask
-    :return: Number of non-zero elements in the mask
-    """
-    return np.count_nonzero(mask)
-
-
-def sparsity_loss(mask: np.ndarray) -> float:
-    """
-    Calculates the sparsity loss of a mask.
-
-    :param `mask`: Numpy array representing the mask
-    :return: Sparsity loss
-    :raises `ValueError`: If the mask is empty
-    """
-    if len(mask) == 0:
-        raise ValueError("The mask cannot be empty.")
-    return -l0_norm(mask) / len(mask)
-
-
 def num_subsequences(mask: np.ndarray) -> int:
     """
     Calculates the number of subsequences in a mask.
@@ -92,18 +54,14 @@ def num_subsequences(mask: np.ndarray) -> int:
     return np.count_nonzero(np.diff(mask))
 
 
-def contiguity_loss(mask: np.ndarray, gamma: float = 0.25) -> float:
+def l0_norm(mask: np.ndarray) -> int:
     """
-    Calculates the contiguity loss of a mask.
+    Calculates the L0 norm of a mask.
 
     :param `mask`: Numpy array representing the mask
-    :param `gamma`: Adjustment parameter, default is 0.25
-    :return: Contiguity loss
-    :raises `ValueError`: If the mask is empty
+    :return: Number of non-zero elements in the mask
     """
-    if len(mask) == 0:
-        raise ValueError("The mask cannot be empty.")
-    return -((num_subsequences(mask) / (len(mask) / 2)) ** gamma)
+    return np.count_nonzero(mask)
 
 
 def l1_norm(x: tp.Union[np.ndarray, list], cfe: tp.Union[np.ndarray, list]) -> float:
@@ -152,25 +110,34 @@ def plot_signal(X, X2, mask, ax, dataset=None):
     :raises ValueError: If the variables cannot be properly flattened
     """
     X, X2, mask = map(np.asarray, (X, X2, mask))
-    
-    X_flat, X2_flat, mask_flat = map(lambda arr: arr.flatten() if np.prod(arr.shape) == max(arr.shape) else arr, (X, X2, mask))
-    
+
+    X_flat, X2_flat, mask_flat = map(
+        lambda arr: arr.flatten() if np.prod(arr.shape) == max(arr.shape) else arr,
+        (X, X2, mask),
+    )
+
     if X_flat.shape != X2_flat.shape or X_flat.shape != mask_flat.shape:
-        raise ValueError(f"Variables cannot be properly flattened: {X.shape}, {X2.shape}, {mask.shape}")
-    
+        raise ValueError(
+            f"Variables cannot be properly flattened: {X.shape}, {X2.shape}, {mask.shape}"
+        )
+
     X, X2, mask = X_flat, X2_flat, mask_flat
-    
+
     if X.shape != X2.shape:
-        raise ValueError(f"`X` and `X2` must have the same size, but got {X.shape} and {X2.shape}")
+        raise ValueError(
+            f"`X` and `X2` must have the same size, but got {X.shape} and {X2.shape}"
+        )
     if X.shape != mask.shape:
-        raise ValueError(f"`X` and `mask` must have the same size, but got {X.shape} and {mask.shape}")
+        raise ValueError(
+            f"`X` and `mask` must have the same size, but got {X.shape} and {mask.shape}"
+        )
     if mask.ndim != 1:
         raise ValueError("`mask` must be a one-dimensional array")
     try:
         mask = mask.astype(np.bool_)
     except ValueError:
         raise TypeError("`mask` must be a list of binary values (0/1 or True/False)")
-    
+
     mod = X.copy()
     mod[mask] = X2[mask]
     ax.clear()
@@ -181,9 +148,16 @@ def plot_signal(X, X2, mask, ax, dataset=None):
     submasks = extract_submasks(mask)
     for subm in submasks:
         x, y = subm
-        ax.axvspan(x - (1 if x > 0 else 0), y - (1 if y >= len(X) else 0), color="red", alpha=0.1)
+        ax.axvspan(
+            x - (1 if x > 0 else 0),
+            y - (1 if y >= len(X) else 0),
+            color="red",
+            alpha=0.1,
+        )
 
-    ax.set_title(f"CFE{f' - {dataset}' if dataset else ''}", fontsize=14, fontweight='bold')
+    ax.set_title(
+        f"CFE{f' - {dataset}' if dataset else ''}", fontsize=14, fontweight="bold"
+    )
 
 
 def extract_submasks(mask):
@@ -196,7 +170,7 @@ def extract_submasks(mask):
     """
     if not all(value in [True, False] for value in mask):
         raise TypeError("The mask must contain only binary values (True/False or 1/0).")
-    
+
     if not any(mask):
         return []
 
@@ -250,10 +224,12 @@ def load_model(dataset, experiment, t="best"):
         raise ValueError(
             "The way to choose an experiment (t) should be one of these: best, random, worst, median or a number."
         )
+    print(os.path.join(exp_path, exp_hash, "model.pth"))
     model = torch.load(
         os.path.join(exp_path, exp_hash, "model.pth"), weights_only=False
     )
     return model
+
 
 class NumpyArrayEncoder(JSONEncoder):
     def default(self, obj):

@@ -40,7 +40,7 @@ def extract_submasks(mask):
     return submasks
 
 
-dataset = "UCR/ecg200"
+dataset = "UCR/chinatown"
 X = np.load(f"./data/{dataset}/X_train.npy", allow_pickle=True)
 Y = np.load(f"./data/{dataset}/Y_train.npy", allow_pickle=True)
 mascara = np.random.choice([True, False], size=X.shape[1]).tolist()

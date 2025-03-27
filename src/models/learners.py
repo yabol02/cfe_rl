@@ -10,10 +10,13 @@ from torch.utils.data import DataLoader, TensorDataset
 
 
 class Learner(ABC):
-    def __init__(self, model: nn.Module,
-                 num_epochs,
-                 es_patience: int = 30,
-                 include_labels_in_forward: bool = False) -> None:
+    def __init__(
+        self,
+        model: nn.Module,
+        num_epochs,
+        es_patience: int = 30,
+        include_labels_in_forward: bool = False,
+    ) -> None:
         self.model = model
         self.num_epochs = num_epochs
 
@@ -37,7 +40,18 @@ class Learner(ABC):
             raise ValueError("Not valid batch size")
         return new_batch_size
 
-    def fit(self, x, y, optimizer, scheduler, batch_size: int = 64, val_size: float = 0.2, train_loader=None, val_loader=None, verbose=True):
+    def fit(
+        self,
+        x,
+        y,
+        optimizer,
+        scheduler,
+        batch_size: int = 64,
+        val_size: float = 0.2,
+        train_loader=None,
+        val_loader=None,
+        verbose=True,
+    ):
 
         # self.train_loss: list = []
         # self.val_loss: list = []
@@ -52,14 +66,18 @@ class Learner(ABC):
 
             # Create loader
             train_loader = DataLoader(
-                TensorDataset(torch.from_numpy(x_train).float(), torch.from_numpy(y_train).long()),
+                TensorDataset(
+                    torch.from_numpy(x_train).float(), torch.from_numpy(y_train).long()
+                ),
                 batch_size=batch_size_train,
                 shuffle=True,
             )
             val_loader = DataLoader(
-                TensorDataset(torch.from_numpy(x_val).float(), torch.from_numpy(y_val).long()),
+                TensorDataset(
+                    torch.from_numpy(x_val).float(), torch.from_numpy(y_val).long()
+                ),
                 batch_size=batch_size_val,
-                shuffle=False
+                shuffle=False,
             )
 
         # Train model
@@ -73,15 +91,23 @@ class Learner(ABC):
         self.model.to(self.device)
         for epoch in range(self.num_epochs):
             train_loss, train_acc, val_loss, val_acc = self.fit_epoch_specific(
-                train_loader, val_loader, optimizer, scheduler, epoch)
+                train_loader, val_loader, optimizer, scheduler, epoch
+            )
 
             if verbose:
-                print(f'Epoch: {epoch + 1}, '
-                      f'Train loss: {round(train_loss, 3)}, '
-                      f'Train acc: {round(train_acc, 3)}, || '
-                      f'Val loss: {round(val_loss, 3)}, '
-                      f'Val acc: {round(val_acc, 3)}')
-            metrics = {"train_loss": train_loss, "train_acc": train_acc, "val_loss": val_loss, "val_acc": val_acc}
+                print(
+                    f"Epoch: {epoch + 1}, "
+                    f"Train loss: {round(train_loss, 3)}, "
+                    f"Train acc: {round(train_acc, 3)}, || "
+                    f"Val loss: {round(val_loss, 3)}, "
+                    f"Val acc: {round(val_acc, 3)}"
+                )
+            metrics = {
+                "train_loss": train_loss,
+                "train_acc": train_acc,
+                "val_loss": val_loss,
+                "val_acc": val_acc,
+            }
             epoch_metrics.append(metrics)
 
             if val_loss < best_val_loss:
@@ -95,7 +121,7 @@ class Learner(ABC):
                 if patience_counter == self.es_patience:
                     if best_state_dict is not None:
                         self.model.load_state_dict(best_state_dict)
-                    print('Early stopping!')
+                    print("Early stopping!")
                     break
 
         self.is_trained = True
@@ -103,7 +129,9 @@ class Learner(ABC):
         return epoch_metrics
 
     @abstractmethod
-    def fit_epoch_specific(self, train_loader, val_loader, optimizer, scheduler, epoch, **kwargs):
+    def fit_epoch_specific(
+        self, train_loader, val_loader, optimizer, scheduler, epoch, **kwargs
+    ):
         pass
 
     @abstractmethod
@@ -118,7 +146,9 @@ class Learner(ABC):
 
         batch_size_test = self._get_batch_size(batch_size, x_test.shape[0])
         test_loader = DataLoader(
-            TensorDataset(torch.from_numpy(x_test).float(), torch.from_numpy(x_test).float()),
+            TensorDataset(
+                torch.from_numpy(x_test).float(), torch.from_numpy(x_test).float()
+            ),
             batch_size=batch_size_test,
             shuffle=False,
         )
@@ -142,11 +172,14 @@ class Learner(ABC):
 
 
 class BasicLearner(Learner):
-    def __init__(self, model: nn.Module,
-                 criterion,
-                 num_epochs,
-                 es_patience: int = 30,
-                 include_labels_in_forward: bool = False) -> None:
+    def __init__(
+        self,
+        model: nn.Module,
+        criterion,
+        num_epochs,
+        es_patience: int = 30,
+        include_labels_in_forward: bool = False,
+    ) -> None:
         super().__init__(model, num_epochs, es_patience, include_labels_in_forward)
         self.criterion = criterion.to(self.device)
 
@@ -154,7 +187,9 @@ class BasicLearner(Learner):
         loss = self.criterion(output, y_true)
         return loss
 
-    def fit_epoch_specific(self, train_loader, val_loader, optimizer, scheduler, epoch, **kwargs):
+    def fit_epoch_specific(
+        self, train_loader, val_loader, optimizer, scheduler, epoch, **kwargs
+    ):
         n_examples_train = 0
         n_correct_train = 0
         n_examples_val = 0
@@ -210,5 +245,3 @@ class BasicLearner(Learner):
 
     def end_of_training_callback(self):
         pass
-
-

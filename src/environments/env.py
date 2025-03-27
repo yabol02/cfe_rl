@@ -1,74 +1,11 @@
-import os
-import json
-import utils
-import typing as tp
-import numpy as np
 import gymnasium as gym
-from data_manager import DataManager
+import numpy as np
 from datetime import datetime
-from stable_baselines3.common.env_checker import check_env
-
-
-class RandomAgent:
-    """
-    Agent that makes random decisions on a mask.
-
-    :param `mask_length`: Length of the mask that the agent will modify.
-    :param `model`: Classification model for decision making (optional).
-    :param `kwargs`: Additional configurations.
-    """
-
-    # TODO: Add the classifier to the class constructor (for other agents) => self.model = model
-    def __init__(self, mask_length: int, **kwargs):
-        self.configuration = {**kwargs}
-        self.observation = None
-        self.mask = np.ones(mask_length, dtype=np.bool_)
-
-    def decide(self) -> tp.List:
-        """
-        Makes a random decision on where to start and the size of the transformation
-
-        :return `action`: A list action of the form [start, size]
-        """
-        # TODO: Add that the observations be passed to the model for decision making => self.model.predict(observation)
-        start = int(np.random.uniform(0, 1) * len(self.mask))
-        size = int(np.random.uniform(0, 1) * len(self.mask))
-        action = [start, size]
-        return action
-
-    def map_action(self, action: tp.Tuple[int, int]) -> np.ndarray:
-        """
-        Transforms the mask according to the given action
-
-        :param `action`: Shape tuple (start of transformation, size of transformation)
-        :return: The modified mask
-        """
-        start, size = action
-        start = max(0, start)
-        end = min(len(self.mask), start + size)
-        self.mask[start:end] = np.logical_not(self.mask[start:end])
-        return self.mask
-
-    def step(self, observation):
-        """
-        Performs a step of the agent with the given observation.
-
-        :param `observation`: Observation from the environment.
-        :return `new_mask`: The new modified mask.
-        """
-        self.observation = observation
-        action = (
-            self.decide()
-        )  # TODO: This mehod must somehow receive the observation from the environment
-        print(action)
-        new_mask = self.map_action(action)
-        return new_mask
-
-    def reset_mask(self):
-        """
-        Resets the mask to its initial state (all ones)
-        """
-        return np.ones(len(self.mask))
+from os import makedirs
+from json import dump
+from ..utils import losses
+from ..utils import NumpyArrayEncoder
+from ..data import DataManager
 
 
 class MyEnv(gym.Env):
@@ -100,7 +37,7 @@ class MyEnv(gym.Env):
         self.action_space = gym.spaces.MultiBinary(n=self.mask.shape[0])
         self.experiment = {
             "experiment": self.name,
-            "dataset": self.data,
+            "dataset": self.data.name,
             "sample": self.x1,
             "nun": self.x2,
             "datetime_start": datetime.now().strftime("%d/%m/%Y %H:%M:%S"),
@@ -150,7 +87,7 @@ class MyEnv(gym.Env):
         observation = {"original": self.x1, "nun": new_signal, "mask": self.mask}
         reward = self.reward(new_signal)
         done = self.check_done()
-        truncated = self.check_end(100)
+        truncated = self.check_end(10)
         info = self._get_info()
         self.experiment["steps"].append(info.copy())
 
@@ -179,11 +116,11 @@ class MyEnv(gym.Env):
         """
         # TODO: Assign a weight to the class penalty
         total_reward = 0
-        adv, pred = utils.adversarial_loss(
+        adv, pred = losses.adversarial_loss(
             new_signal, self.data.get_predicted_label(self.x1), self.model
         )
-        spa = utils.sparsity_loss(self.mask)
-        sub = utils.contiguity_loss(self.mask)
+        spa = losses.sparsity_loss(self.mask)
+        sub = losses.contiguity_loss(self.mask)
         total_reward += adv * self.weights["adversarial"]
         total_reward += spa * self.weights["sparsity"]
         total_reward += sub * self.weights["contiguity"]
@@ -248,7 +185,7 @@ class MyEnv(gym.Env):
             self.name = new_name
         self.experiment = {
             "experiment": self.name,
-            "dataset": self.data,
+            "dataset": self.data.name,
             "sample": self.x1,
             "nun": self.x2,
             "datetime_start": datetime.now().strftime("%d/%m/%Y %H:%M:%S"),
@@ -260,22 +197,6 @@ class MyEnv(gym.Env):
     def save_results(self):
         if self.name is None:
             self.name = "default_name"
-        os.makedirs("./results", exist_ok=True)
+        makedirs("./results", exist_ok=True)
         with open(f"./results/{self.name}.json", "w") as f:
-            json.dump(self.experiment, f, cls=utils.NumpyArrayEncoder, indent=2)
-
-
-if __name__ == "__main__":
-    experiment = "chinatown"
-    model = utils.load_model(experiment, "fcn")
-    data = DataManager(f"UCR/{experiment}", model, "standard")
-    env = MyEnv(data, model, [1 / 3, 1 / 3, 1 / 3], "prueba")
-    agent = RandomAgent(data.X_train.shape[2])
-    check_env(env)
-    obs = env.reset()
-    done, truncated = False, False
-    while not done and not truncated:
-        action = agent.step(obs)
-        obs, reward, done, truncated, info = env.step(action)
-        print(f"{info['step']}: {info['mask']} ==> {reward}")
-    env.reset(save_res=True)
+            dump(self.experiment, f, cls=NumpyArrayEncoder, indent=2)

@@ -22,7 +22,7 @@ import torch.nn.functional as F
 from torch.utils.data import DataLoader, TensorDataset
 
 # from models.ResNet import ResNet
-from models.FCN import FCN, ElasticFCN, DilatedFCN, DynamicFCN
+from ..models.FCN import FCN, ElasticFCN, DilatedFCN, DynamicFCN
 # from models.DisjointCNN import DisjointCNN
 # from models.DWSCNN import DWSCNN, ElasticDWSCNN, DilatedDWSCNN
 # from models.InceptionTime import InceptionModel, DilatedInceptionModel
@@ -35,7 +35,7 @@ from models.FCN import FCN, ElasticFCN, DilatedFCN, DynamicFCN
 # from models.MultiScaleProto import MultiScaleProto, MultiScaleClassProto, MultiScaleProtoMoE, MultiScaleProtoMoETime, MSConvProtoLearner
 # from models.MultiScaleProto import MultiScaleProtoParts
 # from models.ConvTran import ConvTran, ConvTranLearner, RAdam
-from models.learners import BasicLearner
+from ..models.learners import BasicLearner
 from torchsummary import summary
 
 
@@ -551,24 +551,24 @@ def model_selector(dataset, in_channels, ts_len, n_classes, params, model_type, 
     #         weight_decay=weight_decay, cls_bias=params["cls_bias"],
     #         data_augmentation=params["data_augmentation"]
     #     )
-    # elif model_type == "ElasticFCN":
-    #     model = ElasticFCN(
-    #         in_channels=in_channels, channels=params["channels"], kernel_sizes=params["kernel_sizes"],
-    #         kernel_scales=params["kernel_scales"], pool_type=params["pool_type"], num_classes=n_classes
-    #     )
-    #     optimizer = torch.optim.Adam(model.parameters(), lr=params["learning_rate"], weight_decay=weight_decay)
-    #     scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, 'min', patience=params["lr_patience"],
-    #                                                            factor=0.5)
-    #     trainer = BasicLearner(model, criterion, num_epochs=params["epochs"], es_patience=params["es_patience"])
-    # elif model_type == "DilatedFCN":
-    #     model = DilatedFCN(
-    #         in_channels=in_channels, channels=params["channels"], kernel_sizes=params["kernel_sizes"],
-    #         dilations=params["dilations"], pool_type=params["pool_type"], num_classes=n_classes
-    #     )
-    #     optimizer = torch.optim.Adam(model.parameters(), lr=params["learning_rate"], weight_decay=weight_decay)
-    #     scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, 'min', patience=params["lr_patience"],
-    #                                                            factor=0.5)
-    #     trainer = BasicLearner(model, criterion, num_epochs=params["epochs"], es_patience=params["es_patience"])
+    elif model_type == "ElasticFCN":
+        model = ElasticFCN(
+            in_channels=in_channels, channels=params["channels"], kernel_sizes=params["kernel_sizes"],
+            kernel_scales=params["kernel_scales"], pool_type=params["pool_type"], num_classes=n_classes
+        )
+        optimizer = torch.optim.Adam(model.parameters(), lr=params["learning_rate"], weight_decay=weight_decay)
+        scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, 'min', patience=params["lr_patience"],
+                                                               factor=0.5)
+        trainer = BasicLearner(model, criterion, num_epochs=params["epochs"], es_patience=params["es_patience"])
+    elif model_type == "DilatedFCN":
+        model = DilatedFCN(
+            in_channels=in_channels, channels=params["channels"], kernel_sizes=params["kernel_sizes"],
+            dilations=params["dilations"], pool_type=params["pool_type"], num_classes=n_classes
+        )
+        optimizer = torch.optim.Adam(model.parameters(), lr=params["learning_rate"], weight_decay=weight_decay)
+        scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, 'min', patience=params["lr_patience"],
+                                                               factor=0.5)
+        trainer = BasicLearner(model, criterion, num_epochs=params["epochs"], es_patience=params["es_patience"])
     # elif model_type == "DisjointCNN":
     #     model = DisjointCNN(
     #         in_channels=in_channels, channels=params["channels"], kernel_sizes=params["kernel_sizes"],
@@ -577,14 +577,14 @@ def model_selector(dataset, in_channels, ts_len, n_classes, params, model_type, 
     #     optimizer = torch.optim.Adam(model.parameters(), lr=params["learning_rate"], weight_decay=weight_decay)
     #     scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, 'min', patience=params["lr_patience"], factor=0.5)
     #     trainer = BasicLearner(model, criterion, num_epochs=params["epochs"], es_patience=params["es_patience"])
-    # elif model_type == "DynamicFCN":
-    #     model = DynamicFCN(
-    #         in_channels=in_channels, channels=params["channels"], kernel_sizes=params["kernel_sizes"],
-    #         num_classes=n_classes
-    #     )
-    #     optimizer = torch.optim.Adam(model.parameters(), lr=params["learning_rate"], weight_decay=weight_decay)
-    #     scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, 'min', patience=params["lr_patience"], factor=0.5)
-    #     trainer = BasicLearner(model, criterion, num_epochs=params["epochs"], es_patience=params["es_patience"])
+    elif model_type == "DynamicFCN":
+        model = DynamicFCN(
+            in_channels=in_channels, channels=params["channels"], kernel_sizes=params["kernel_sizes"],
+            num_classes=n_classes
+        )
+        optimizer = torch.optim.Adam(model.parameters(), lr=params["learning_rate"], weight_decay=weight_decay)
+        scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, 'min', patience=params["lr_patience"], factor=0.5)
+        trainer = BasicLearner(model, criterion, num_epochs=params["epochs"], es_patience=params["es_patience"])
     # elif model_type == "DWSCNN":
     #     model = DWSCNN(
     #         in_channels=in_channels, channels=params["channels"], kernel_sizes=params["kernel_sizes"],
