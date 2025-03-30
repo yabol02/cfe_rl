@@ -160,7 +160,7 @@ class DataManager:
         :param `index`: The specific index of the sample to retrieve. If None, a random sample is returned, default is None
         :param `test`: If True, gets the sample from the test data, otherwise from training data, default is False
         :param `failed`: Parameter is not used in the current implementation
-        :return `sample`: A sample of the specified class (converted to a NumPy Array)
+        :return `sample`: A sample of the specified class
         :raises `ValueError`: If there is no data for the specified class or if the index is out of bounds
         """
         data = self.X_test if test else self.X_train
@@ -173,15 +173,15 @@ class DataManager:
         if index is not None:
             if index not in class_indices:
                 raise ValueError(f"Index {index} not found in class {label}")
-            sample = data[index : index + 1]
+            sample = data[index]
             return sample
-        
+
         # TODO: Implement ´failed´ functionality.
         # This will return a sample that the model failed predicting it.
 
         index = np.random.choice(class_indices)
-        sample = data[index : index + 1]
-        return sample.detach().cpu().numpy()
+        sample = data[index]
+        return sample
 
     def get_nun(self, sample=None, sample_index=None, train=True, k=1):
         """
@@ -212,7 +212,7 @@ class DataManager:
                 f"Sample index {sample_index} not found in the {'training' if train else 'test'} set"
             )
 
-        return nuns_dict[sample_index][k - 1 : k].detach().cpu().numpy()
+        return nuns_dict[sample_index][k]
 
     def get_true_label(self, sample, train=True):
         """
@@ -248,5 +248,37 @@ class DataManager:
         labels = self.y_train_model if train else self.y_test_model
         label = labels[(data == sample).all(dim=2).squeeze()]
         return label
+    
+    def get_shape(self):
+        """
+        Gets the shape of the samples.
+
+        :return: The shape of the data
+        """
+        return self.X_train[0].shape
+
+    def get_num_samples(self):
+        """
+        Gets the number of samples in the training and test sets.
+
+        :return: A tuple with the number of training and test samples
+        """
+        return self.X_train.shape[0], self.X_test.shape[0]
+
+    def get_dim(self):
+        """
+        Gets the number of dimensions in the data.
+
+        :return: The number of dimensions
+        """
+        return self.X_train.shape[1]
+
+    def get_len(self):
+        """
+        Gets the number of temporal instances.
+
+        :return: The number of temporal instances
+        """
+        return self.X_train.shape[2]
 
     # TODO: Make a method that returns a sample and its NUNs

@@ -34,15 +34,31 @@ class Head1(nn.Module):
 
 
 class Head2(nn.Module):
-    def __init__(self, input_dim, output_dim):
+    def __init__(self, input_dim, output_dim, kernel_size=1):
         super(Head2, self).__init__()
-
-        self.fc = nn.Sequential(
-            nn.Linear(input_dim, 128), nn.ReLU(), nn.Linear(128, output_dim)
+        # self.weights = nn.Parameter(th.ones(3, device="cuda")) # <- Maybe a weighted sum ???
+        self.network = nn.Sequential(
+            nn.Conv1d(input_dim, 64, kernel_size=kernel_size, padding="same"),
+            nn.ReLU(),
+            nn.Conv1d(64, output_dim, kernel_size=kernel_size, padding="same")
         )
 
     def forward(self, x: th.Tensor) -> th.Tensor:
-        return self.fc(x.view(1, -1))
+        return self.network(x)
+
+
+class SharedNetwork(nn.Module):
+    def __init__(self, input_dim=64, output_dim=128, sequence_length=24):
+        super(SharedNetwork, self).__init__()
+        self.model = nn.Sequential(
+            nn.Conv1d(in_channels=input_dim, out_channels=128, kernel_size=3, stride=1),
+            nn.Flatten(start_dim=1),
+            nn.Linear(128 * (sequence_length - 2), output_dim),
+            nn.ReLU(),
+        )
+
+    def forward(self, x):
+        return self.model(x)
 
 
 class PolicyNetwork(nn.Module):
@@ -58,61 +74,50 @@ class PolicyNetwork(nn.Module):
         )
 
     def forward(self, x):
-        if x.dim() == 1:
-            x = x.unsqueeze(0)
         return self.model(x)
 
 
 class ValueNetwork(nn.Module):
-    def __init__(self, input_dim):
+    def __init__(self, input_dim=128, output_dim=1):
         super(ValueNetwork, self).__init__()
+        self.num = 0
         self.model = nn.Sequential(
-            nn.Linear(input_dim, 32), nn.ReLU(), nn.Linear(32, 1)
+            nn.Linear(input_dim, 32), nn.ReLU(), nn.Linear(32, output_dim)
         )
 
     def forward(self, x):
-        if x.dim() == 1:
-            x = x.unsqueeze(0)
         return self.model(x)
 
 
 class MLPExtractor(nn.Module):
-    def __init__(self, input_dim, mask_length=None, map_function=None):
+    def __init__(
+        self, input_dim, mask_length, map_function, pi=2, vf=1, shared=128
+    ):
         super(MLPExtractor, self).__init__()
+        self.latent_dim_pi = pi
+        self.latent_dim_vf = vf
+        self.shared_dim = shared
 
-        self.shared_net = nn.Sequential(
-            nn.Linear(input_dim, 128),
-            nn.ReLU(),
-        )
-        self.policy_net = PolicyNetwork(128, 2)
-        self.value_net = ValueNetwork(128)
+        self.shared_net = SharedNetwork(input_dim, self.shared_dim, mask_length)
+        self.policy_net = PolicyNetwork(self.shared_dim, self.latent_dim_pi)
+        self.value_net = ValueNetwork(self.shared_dim, self.latent_dim_vf)
 
-        self.latent_dim_pi = 2
-        self.latent_dim_vf = 32
-
-        self.mask_length = mask_length
         self.map_function = map_function
 
     def forward(self, x):
-        if x.dim() == 1:
-            x = x.unsqueeze(0)
-
         shared_features = self.shared_net(x)
         policy_output = self.policy_net(shared_features)
+        # policy_output = self.map_function(policy_output)
         value_output = self.value_net(shared_features)
 
         return policy_output, value_output
 
     def forward_actor(self, features: th.Tensor) -> th.Tensor:
-        if features.dim() == 1:
-            features = features.unsqueeze(0)
-        pred_actor = self.policy_net(features)
-        if self.map_function is not None:
-            print(self.map_function(pred_actor))
-        return pred_actor
+        logits = self.policy_net(features)
+        new_mask = self.map_function(logits)
+        return new_mask
 
     def forward_critic(self, features: th.Tensor) -> th.Tensor:
-        if features.dim() == 1:
-            features = features.unsqueeze(0)
-        pred_critic = self.value_net(features)
+        shared = self.shared_net(features)
+        pred_critic = self.value_net(shared)
         return pred_critic

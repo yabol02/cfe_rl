@@ -4,7 +4,7 @@ from datetime import datetime
 from os import makedirs
 from json import dump
 from ..utils import losses
-from ..utils import NumpyArrayEncoder
+from ..utils import ArrayTensorEncoder
 from ..data import DataManager
 
 
@@ -19,7 +19,7 @@ class MyEnv(gym.Env):
         self.weights = self.compute_weights(weights_losses)
         self.x1 = self.data.get_sample()
         self.x2 = self.data.get_nun(self.x1)
-        self.mask = np.ones(self.x1.shape[2], dtype=np.bool_)
+        self.mask = np.ones((self.data.get_dim(), self.data.get_len()), dtype=np.bool_)
         self.steps = 0
         self.last_reward = 0
         self.observation_space = gym.spaces.Dict(
@@ -30,11 +30,11 @@ class MyEnv(gym.Env):
                 "nun": gym.spaces.Box(
                     low=-np.inf, high=np.inf, shape=self.x2.shape, dtype=np.float32
                 ),
-                "mask": gym.spaces.MultiBinary(n=self.mask.shape[0]),
+                "mask": gym.spaces.Box(low=0, high=1, shape=self.mask.shape, dtype=np.bool_),
                 # "last_reward": gym.spaces.Box(low=-1, high=1, shape=1, dtype=np.float64) # TODO: See how affects passing this to the agent
             }
         )
-        self.action_space = gym.spaces.MultiBinary(n=self.mask.shape[0])
+        self.action_space = gym.spaces.Box(low=0, high=1, shape=self.mask.shape, dtype=np.bool_)
         self.experiment = {
             "experiment": self.name,
             "dataset": self.data.name,
@@ -87,7 +87,7 @@ class MyEnv(gym.Env):
         observation = {"original": self.x1, "nun": new_signal, "mask": self.mask}
         reward = self.reward(new_signal)
         done = self.check_done()
-        truncated = self.check_end(10)
+        truncated = self.check_end(1000)
         info = self._get_info()
         self.experiment["steps"].append(info.copy())
 
@@ -173,7 +173,7 @@ class MyEnv(gym.Env):
         self.last_reward = 0
         self.x1 = self.data.get_sample()
         self.x2 = self.data.get_nun(self.x1)
-        self.mask = np.ones(self.x1.shape[2], dtype=np.bool_)
+        self.mask = np.ones((self.data.get_dim(), self.data.get_len()), dtype=np.bool_)
         observation = {"original": self.x1, "nun": self.x2, "mask": self.mask}
         info = self._get_info()
         if save_res:
@@ -199,4 +199,4 @@ class MyEnv(gym.Env):
             self.name = "default_name"
         makedirs("./results", exist_ok=True)
         with open(f"./results/{self.name}.json", "w") as f:
-            dump(self.experiment, f, cls=NumpyArrayEncoder, indent=2)
+            dump(self.experiment, f, cls=ArrayTensorEncoder, indent=2)

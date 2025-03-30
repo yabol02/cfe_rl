@@ -1,43 +1,54 @@
-from src import utils
-import numpy as np
-import torch as th
-from src.data import DataManager
-from src.agents.components import CustomFeatureExtractor, CustomPolicy
+import sys
+import os
 
+ROOT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "../.."))
+sys.path.append(ROOT_DIR)
+
+
+import torch as th
+from src import utils
+from src.data import DataManager
+from src.environments import MyEnv
+from src.agents.components import CustomPolicy
+from stable_baselines3.common.env_checker import check_env
+from stable_baselines3 import PPO, A2C
 
 exp = "chinatown"
 model = utils.load_model(exp, "fcn")
 data = DataManager(f"UCR/{exp}", model, "standard")
-x = th.as_tensor(data.get_sample())
-nun = th.as_tensor(data.get_nun(x))
-mask = th.as_tensor(np.ones(x.shape[2], dtype=np.bool_))
 
-import gymnasium as gym
-from src.agents.agents import *
 
-observation_space = gym.spaces.Dict(
-    {
-        "original": gym.spaces.Box(
-            low=-np.inf, high=np.inf, shape=x.shape, dtype=np.float32
-        ),
-        "nun": gym.spaces.Box(
-            low=-np.inf, high=np.inf, shape=nun.shape, dtype=np.float32
-        ),
-        "mask": gym.spaces.MultiBinary(n=mask.shape[0]),
-    }
-)
-ext = CustomFeatureExtractor(observation_space)
-obs = observation_space.sample()
-# featurized = ext.forward(obs)
-# print(featurized)
+def map_action_to_mask(action, mask):
+    mask = mask.squeeze(0)
+    mask_last_dim = mask.shape[-1]
+    for dim in range(len(action)):
+        start, size = action[dim]
+        start = th.clamp(start * mask_last_dim, min=0).short()
+        end = th.clamp((start + size) * mask_last_dim, max=mask_last_dim).short()
+        mask[dim, start:end] = th.logical_not(mask[dim, start:end])
+    return mask
 
-from stable_baselines3 import PPO
-from prueba_rl import MyEnv
-import src.agents.agents as agents
+
+def lr_schedule(progress):
+    return 3e-4 * (1 - progress)
+
+
 env = MyEnv(data, model, experiment_name=exp)
-my_agent = agents.PPOAgent(x.shape[2], CustomPolicy, env)
-
-
-action = my_agent.step(obs)
-obs, reward, done, truncated, info = env.step(action)
-# my_agent.learn()
+# check_env(env)
+policy_kwargs = dict(mask_shape=data.get_shape(), map_function=map_action_to_mask)
+agent = A2C(
+    CustomPolicy,  # Policy
+    env,  # Environment
+    policy_kwargs=policy_kwargs,  # Some arguments for the policy
+    learning_rate=lr_schedule,  # Scheduler
+    n_steps=2048,  # Steps before updating
+    batch_size=64,  # Higher batch size
+    n_epochs=10,  # More epochs per update
+    gamma=0.99,  # Discount factor
+    gae_lambda=0.95,  # Generalized advantage parameter
+    clip_range=0.2,  # Stable clipping
+    ent_coef=0.01,  # Entropy regularization
+    vf_coef=0.5,  # Weight of the loss of the value function
+    verbose=2,
+)
+agent.learn(total_timesteps=100_000, progress_bar=True)

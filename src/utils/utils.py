@@ -1,5 +1,5 @@
 import os
-import torch
+import torch as th
 import typing as tp
 import numpy as np
 from torch.nn import functional
@@ -21,23 +21,24 @@ def predict_proba(model, data, device="cpu"):
     model.eval()
 
     if isinstance(data, np.ndarray):
-        data_tensor = torch.tensor(data, dtype=torch.float32)
+        data_tensor = th.tensor(data, dtype=th.float32)
     else:
         data_tensor = data
-    if len(data_tensor.shape) == 2:
-        seq_length, features = data_tensor.shape
+
+    if data_tensor.ndim == 2:
+        features, seq_length = data_tensor.shape
         data_tensor = data_tensor.reshape(1, features, seq_length)
-    elif len(data_tensor.shape) == 1:
+    elif data_tensor.ndim == 1:
         seq_length = data_tensor.shape[0]
         data_tensor = data_tensor.reshape(1, 1, seq_length)
 
     data_tensor = data_tensor.to(device)
     model = model.to(device)
 
-    with torch.no_grad():
+    with th.no_grad():
         logits = model(data_tensor)
         probabilities = functional.softmax(logits, dim=1)
-        _, predicted_class = torch.max(logits, 1)
+        _, predicted_class = th.max(logits, 1)
 
     return probabilities, (
         predicted_class.item() if predicted_class.shape[0] == 1 else predicted_class
@@ -224,15 +225,14 @@ def load_model(dataset, experiment, t="best"):
         raise ValueError(
             "The way to choose an experiment (t) should be one of these: best, random, worst, median or a number."
         )
-    print(os.path.join(exp_path, exp_hash, "model.pth"))
-    model = torch.load(
+    model = th.load(
         os.path.join(exp_path, exp_hash, "model.pth"), weights_only=False
     )
     return model
 
 
-class NumpyArrayEncoder(JSONEncoder):
+class ArrayTensorEncoder(JSONEncoder):
     def default(self, obj):
-        if isinstance(obj, np.ndarray):
+        if isinstance(obj, (np.ndarray, th.Tensor)):
             return obj.tolist()
         return JSONEncoder.default(self, obj)
