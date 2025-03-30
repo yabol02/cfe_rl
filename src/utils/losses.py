@@ -24,7 +24,7 @@ def sparsity_loss(mask: np.ndarray) -> float:
     """
     if len(mask) == 0:
         raise ValueError("The mask cannot be empty.")
-    return -l0_norm(mask) / len(mask)
+    return -l0_norm(mask) / mask.size
 
 def contiguity_loss(mask: np.ndarray, gamma: float = 0.25) -> float:
     """
@@ -37,4 +37,4 @@ def contiguity_loss(mask: np.ndarray, gamma: float = 0.25) -> float:
     """
     if len(mask) == 0:
         raise ValueError("The mask cannot be empty.")
-    return -((num_subsequences(mask) / (len(mask) / 2)) ** gamma)
+    return -((num_subsequences(mask) / (mask.size / 2)) ** gamma)
