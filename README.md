@@ -10,21 +10,26 @@ This is a first approximation of the project. This repository implements a syste
 
 The following folder structure organizes the project in a modular and scalable way:
 
-    cfe_rl/
-    ├───models
-    │   ├───chinatown
-    │   ├───ecg200
-    │   └───forda
-    ├───params
-    │   ├───agents
-    │   └───models
-    ├───results
-    └───src
-        ├───agents
-        ├───data
-        ├───environments
-        ├───models
-        └───utils
+    cfe_rl
+    ├── data         
+    │   └── UCR
+    │       ├── chinatown
+    │       ├── ecg200
+    │       └── forda
+    ├── models
+    │   ├── chinatown
+    │   ├── ecg200
+    │   └── forda
+    ├── params
+    │   ├── agents
+    │   └── models
+    ├── results
+    └── src
+        ├── agents
+        ├── data
+        ├── environments
+        ├── models
+        └── utils
 
 ## Description of Folders
 
