@@ -18,7 +18,7 @@ model = utils.load_model(exp, "fcn")
 data = DataManager(f"UCR/{exp}", model, "standard")
 
 
-def map_action_to_mask(action, mask):
+def map_action_to_mask(action: th.Tensor, mask: th.Tensor) -> th.Tensor:
     mask = mask.squeeze(0)
     mask_last_dim = mask.shape[-1]
     for dim in range(len(action)):
@@ -36,7 +36,7 @@ def lr_schedule(progress):
 env = MyEnv(data, model, experiment_name=exp)
 # check_env(env)
 policy_kwargs = dict(mask_shape=data.get_shape(), map_function=map_action_to_mask)
-agent = A2C(
+agent = PPO(
     CustomPolicy,  # Policy
     env,  # Environment
     policy_kwargs=policy_kwargs,  # Some arguments for the policy
