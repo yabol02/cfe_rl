@@ -2,6 +2,8 @@
 
 This is a first approximation of the project. This repository implements a system to generate counterfactual explanations of a time series classification model, by searching for the Nearest Unlike Neighbor (NUN) and using a binary mask that exchanges values between the original sample and its NUN.
 
+To test the created environment, run the file `./experiments/scripts/run_exp`
+
 
 > [!IMPORTANT] 
 > For the moment, this README focuses on describing the project directory structure.
