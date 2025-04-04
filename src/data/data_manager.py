@@ -1,7 +1,7 @@
 import os
 import typing as tp
 import numpy as np
-from ..utils import predict_proba
+from ..utils import label_encoder, predict_proba 
 
 try:
     from torch import tensor, nn
@@ -21,9 +21,10 @@ class DataManager:
         scaling: str = "none",
         backend: str = "torch",
     ):
-        self.X_train, self.y_train_true, self.X_test, self.y_test_true = (
+        self.X_train, y_train, self.X_test, y_test = (
             self.load_dataset(dataset, scaling, backend)
         )
+        self.y_train_true, self.y_test_true = label_encoder(y_train, y_test)
         self.name = dataset
         self.model = model
         self.y_train_model = predict_proba(self.model, self.X_train)[1]
@@ -125,7 +126,9 @@ class DataManager:
     def compute_nuns(self, train=True, preds=False):
         """
         Computes the Nearest Unlike Neighbors (NUNs) for each sample in the dataset.
-        For each sample, finds the closest samples with a different label and returns them in an ordered list based on their distance.
+        For each sample, finds the closest samples with a different label and returns the 10 closest in an ordered list based on their distance.
+        The NUNs of the training data are calculated on the known data, which implies that they are computed over the training data.
+
 
         :param `train`: If True, computes NUNs for training data, otherwise for test data, default is True
         :param `preds`: If True, uses model predictions as labels, otherwise uses true labels, default is False
@@ -133,10 +136,7 @@ class DataManager:
         """
         data = self.X_train if train else self.X_test
 
-        if train:
-            labels = self.y_train_model if preds else self.y_train_true
-        else:
-            labels = self.y_test_model if preds else self.y_test_true
+        labels = self.y_train_model if preds else self.y_train_true
 
         nuns = dict()
         for i, sample in enumerate(data):
@@ -146,9 +146,9 @@ class DataManager:
                 else self.get_predicted_label(sample, True if train else False)
             )
             unlike_indices = np.where(labels != sample_label)[0]
-            distances = np.linalg.norm(data[unlike_indices] - sample, ord=2, axis=2)
+            distances = np.linalg.norm(self.X_train[unlike_indices] - sample, ord=2, axis=2)
             sorted_idxs = unlike_indices[np.argsort(distances, axis=0)[::-1]].flatten()
-            nuns[i] = data[sorted_idxs]
+            nuns[i] = self.X_train[sorted_idxs][:10]
 
         return nuns
 

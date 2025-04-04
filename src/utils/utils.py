@@ -16,7 +16,7 @@ def predict_proba(model, data, device="cpu"):
     :param `data`: The input data (either as a tensor or a numpy array) for which predictions are made.
     :param `device`: The device ('cpu' or 'cuda') on which the model and data should be processed.
     :return `probabilities`: A tensor containing class probabilities for the input data
-    _return `predicted_class`: The index of the class with the highest probability
+    :return `predicted_class`: The index of the class with the highest probability
     """
     model.eval()
 
@@ -40,9 +40,11 @@ def predict_proba(model, data, device="cpu"):
         probabilities = functional.softmax(logits, dim=1)
         _, predicted_class = th.max(logits, 1)
 
-    return probabilities, (
+    pred_class = (
         predicted_class.item() if predicted_class.shape[0] == 1 else predicted_class
     )
+
+    return probabilities, pred_class
 
 
 def num_subsequences(mask: np.ndarray) -> int:
@@ -225,9 +227,7 @@ def load_model(dataset, experiment, t="best"):
         raise ValueError(
             "The way to choose an experiment (t) should be one of these: best, random, worst, median or a number."
         )
-    model = th.load(
-        os.path.join(exp_path, exp_hash, "model.pth"), weights_only=False
-    )
+    model = th.load(os.path.join(exp_path, exp_hash, "model.pth"), weights_only=False)
     return model
 
 
