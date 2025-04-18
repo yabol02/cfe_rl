@@ -54,12 +54,12 @@ def num_subsequences(mask: np.ndarray) -> int:
     :param `mask`: Numpy array representing the mask
     :return: Number of subsequences
     """
-    return np.count_nonzero(np.diff(mask))
+    return np.count_nonzero(np.diff(mask, prepend=0, axis=1) == 1, axis=(0, 1))
 
 
 def l0_norm(mask: np.ndarray) -> int:
     """
-    Calculates the L0 norm of a mask.
+    Calculates the L0 pseudo-norm of a mask.
 
     :param `mask`: Numpy array representing the mask
     :return: Number of non-zero elements in the mask
@@ -165,30 +165,31 @@ def plot_signal(X, X2, mask, ax, dataset=None):
 
 def extract_submasks(mask):
     """
-    Identifies contiguous regions where the mask is True and returns their start and end indices.
+    Identifies contiguous regions where the mask is True and returns their dimension, start and end indices.
 
     :param `mask`: Boolean mask indicating the regions of interest
     :return: List of tuples (start_idx, end_idx) representing the masked regions
     :raises TypeError: If mask does not contain binary values (0/1 or True/False)
     """
-    if not all(value in [True, False] for value in mask):
+    if not all(value in [True, False] for dim in mask for value in dim):
         raise TypeError("The mask must contain only binary values (True/False or 1/0).")
 
-    if not any(mask):
+    if not any([any(dimension) for dimension in mask]):
         return []
 
     submasks = []
-    start_idx = None
 
-    for i, value in enumerate(mask):
-        if value and start_idx is None:
-            start_idx = i
-        elif not value and start_idx is not None:
-            submasks.append([start_idx, i])
-            start_idx = None
+    for dim in range(len(mask)):
+        start_idx = None
+        for i, value in enumerate(mask[dim]):
+            if value and start_idx is None:
+                start_idx = i
+            elif not value and start_idx is not None:
+                submasks.append([dim, start_idx, i])
+                start_idx = None
 
-    if start_idx is not None:
-        submasks.append([start_idx, len(mask)])
+        if start_idx is not None:
+            submasks.append([dim, start_idx, mask.shape[-1]])
 
     return submasks
 

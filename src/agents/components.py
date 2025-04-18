@@ -3,7 +3,7 @@ import torch as th
 import typing as tp
 from stable_baselines3.common.torch_layers import BaseFeaturesExtractor
 from stable_baselines3.common.policies import ActorCriticPolicy
-from stable_baselines3.common.distributions import BernoulliDistribution
+from stable_baselines3.dqn import MultiInputPolicy
 from ..models import Head1, Head2, MLPExtractor
 
 
@@ -18,7 +18,7 @@ class CustomFeatureExtractor(BaseFeaturesExtractor):
         time_steps = input_shape[input_dims - 1]
 
         self.cnn_extractor = Head1(channels)
-        self.mlp_extractor = Head2(input_dim=3 * channels, output_dim=features_dim)
+        self.mlp_extractor = Head2(input_dim=3 * channels) # Previously we had output_dim=features_dim
 
     def forward(self, observations: dict) -> th.Tensor:
         x = th.as_tensor(observations["original"], dtype=th.float32)
@@ -37,7 +37,7 @@ class CustomFeatureExtractor(BaseFeaturesExtractor):
         return extracted_features
 
 
-class CustomPolicy(ActorCriticPolicy):
+class CustomACPolicy(ActorCriticPolicy):
     def __init__(
         self,
         observation_space: gym.spaces.Space,
@@ -59,7 +59,7 @@ class CustomPolicy(ActorCriticPolicy):
             *args,
             **kwargs,
         )
-        self.distribution = BernoulliDistribution(mask_shape)
+        # self.distribution = BernoulliDistribution(mask_shape)
 
     def _build_mlp_extractor(self) -> None:
         self.mlp_extractor = MLPExtractor(
@@ -97,3 +97,52 @@ class CustomPolicy(ActorCriticPolicy):
         log_prob = distribution.log_prob(action.to(dtype=th.int))
         action = action.reshape((-1, *self.action_space.shape))  # type: ignore[misc]
         return action, values, log_prob
+
+
+class CustomQPolicy(MultiInputPolicy):
+    def __init__(
+        self,
+        observation_space: gym.spaces.Space,
+        action_space: gym.spaces.Space,
+        lr_schedule: tp.Callable[[float], float],
+        mask_shape,
+        input_dim: int,
+        *args,
+        **kwargs
+    ):
+        super().__init__(
+            observation_space,
+            action_space,
+            lr_schedule,
+            features_extractor_class=CustomFeatureExtractor,
+            features_extractor_kwargs=dict(features_dim=input_dim),
+            *args,
+            **kwargs,
+        )
+        self.mask_length = mask_shape
+        self.input_dim = input_dim
+        self.n_actions = action_space.n
+
+    def _build(self, lr_schedule) -> None:
+        """
+        Create the network and the optimizer.
+
+        Put the target network into evaluation mode.
+
+        :param lr_schedule: Learning rate schedule
+            lr_schedule(1) is the initial learning rate
+        """
+
+        self.q_net = self.make_q_net()
+        # print(self.q_net)
+        self.q_net_target = self.make_q_net()
+        self.q_net_target.load_state_dict(self.q_net.state_dict())
+        self.q_net_target.set_training_mode(False)
+
+        # Setup optimizer with initial learning rate
+        self.optimizer = self.optimizer_class(  # type: ignore[call-arg]
+            self.q_net.parameters(),
+            lr=lr_schedule(1),
+            **self.optimizer_kwargs,
+        )
+

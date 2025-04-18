@@ -34,17 +34,42 @@ class Head1(nn.Module):
 
 
 class Head2(nn.Module):
-    def __init__(self, input_dim, output_dim, kernel_size=1):
+    def __init__(self, input_dim, kernel_size=1):
         super(Head2, self).__init__()
         # self.weights = nn.Parameter(th.ones(3, device="cuda")) # <- Maybe a weighted sum ???
         self.network = nn.Sequential(
             nn.Conv1d(input_dim, 64, kernel_size=kernel_size, padding="same"),
             nn.ReLU(),
-            nn.Conv1d(64, output_dim, kernel_size=kernel_size, padding="same")
+            nn.Conv1d(64, 64, kernel_size=kernel_size, padding="same"),
+            nn.ReLU(),
+            nn.Conv1d(64, 1, kernel_size=kernel_size, padding="same"),
+            nn.Flatten(),
         )
 
     def forward(self, x: th.Tensor) -> th.Tensor:
         return self.network(x)
+
+
+class DiscreteNetwork(nn.Module):
+    def __init__(self, input_dim=64, output_dim=2, sequence_length=24):
+        super(DiscreteNetwork, self).__init__()
+        self.input_dim = input_dim
+        self.output_dim = output_dim
+        self.sequence_length = sequence_length
+        self.conv = nn.Conv1d(in_channels=input_dim, out_channels=1, kernel_size=1)
+        self.flatten = nn.Flatten(start_dim=1)
+        self.linear = nn.Linear(in_features=sequence_length, out_features=output_dim)
+        self.network = nn.Sequential(
+            nn.Conv1d(in_channels=input_dim, out_channels=1, kernel_size=1),
+            nn.Flatten(start_dim=1),
+            nn.Linear(in_features=sequence_length, out_features=output_dim),
+        )
+
+    def forward(self, x):
+        x = self.conv(x)
+        x = self.flatten(x)
+        x = self.linear(x)
+        return x
 
 
 class SharedNetwork(nn.Module):
@@ -90,9 +115,7 @@ class ValueNetwork(nn.Module):
 
 
 class MLPExtractor(nn.Module):
-    def __init__(
-        self, input_dim, mask_length, map_function, pi=2, vf=1, shared=128
-    ):
+    def __init__(self, input_dim, mask_length, map_function, pi=2, vf=1, shared=128):
         super(MLPExtractor, self).__init__()
         self.latent_dim_pi = pi
         self.latent_dim_vf = vf

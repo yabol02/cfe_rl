@@ -152,7 +152,7 @@ class DataManager:
 
         return nuns
 
-    def get_sample(self, label=1, index=None, test=False, failed=False):
+    def get_sample(self, label=0, index=None, test=False, failed=False):
         """
         Gets a sample of the data belonging to the class specified by label.
 

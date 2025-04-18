@@ -1,2 +1,2 @@
 from .agents import RandomAgent, PPOAgent
-from .components import CustomPolicy
+from .components import CustomFeatureExtractor, CustomACPolicy, CustomQPolicy

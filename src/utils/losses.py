@@ -2,15 +2,15 @@ import numpy as np
 from .utils import predict_proba, l0_norm, num_subsequences
 
 
-def adversarial_loss(x, y_nun, model, device="cpu"):
+def adversarial_loss(sample, y_nun, model, device="cpu"):
     """
-    Classifier's probability for the desired class y_nun given x'.
+    Classifier's probability for the desired class y_nun given sample'.
 
-    :param `x`: New generated sample
+    :param `sample`: New generated sample
     :param `y_nun`: Label of the desired class
     :return `prob`: Probability prediction of the model
     """
-    probabilities, pred_class = predict_proba(model, x, device)
+    probabilities, pred_class = predict_proba(model, sample, device)
     prob = probabilities[0, y_nun].item()
     return prob, pred_class
 

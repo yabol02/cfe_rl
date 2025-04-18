@@ -10,7 +10,11 @@ from ..data import DataManager
 
 class MyEnv(gym.Env):
     def __init__(
-        self, dataset: DataManager, model, weights_losses=None, experiment_name=None
+        self,
+        dataset: DataManager,
+        model,
+        weights_losses=None,
+        experiment_name=None,
     ):
         super().__init__()
         self.data = dataset
@@ -21,7 +25,7 @@ class MyEnv(gym.Env):
         self.x2 = self.data.get_nun(self.x1)
         self.mask = np.ones((self.data.get_dim(), self.data.get_len()), dtype=np.bool_)
         self.steps = 0
-        self.last_reward = 0
+        self.last_reward = self.compute_losses(self.x2)
         self.observation_space = gym.spaces.Dict(
             {
                 "original": gym.spaces.Box(
@@ -30,11 +34,18 @@ class MyEnv(gym.Env):
                 "nun": gym.spaces.Box(
                     low=-np.inf, high=np.inf, shape=self.x2.shape, dtype=np.float32
                 ),
-                "mask": gym.spaces.Box(low=0, high=1, shape=self.mask.shape, dtype=np.bool_),
+                "mask": gym.spaces.Box(
+                    low=0, high=1, shape=self.mask.shape, dtype=np.bool_
+                ),
                 # "last_reward": gym.spaces.Box(low=-1, high=1, shape=1, dtype=np.float64) # TODO: See how affects passing this to the agent
             }
         )
-        self.action_space = gym.spaces.Box(low=0, high=1, shape=self.mask.shape, dtype=np.bool_)
+        self.action_space = gym.spaces.Box(
+            low=0, high=1, shape=self.mask.shape, dtype=np.bool_
+        )
+        # self.action_space = gym.spaces.Box(low=0, high=self.data.get_len()-1, shape=(2,), dtype=np.uint32)
+        self.last_action = self.action_space.sample()
+        self.same_action_counter = 0
         self.experiment = {
             "experiment": self.name,
             "dataset": self.data.name,
@@ -83,10 +94,10 @@ class MyEnv(gym.Env):
         self.steps += 1
         self.renew_mask(action)
         new_signal = self.compute_cfe()
-
-        observation = {"original": self.x1, "nun": new_signal, "mask": self.mask}
+        # print(f'{self.steps}) {action=} ==> {self.mask}')
+        observation = {"original": self.x1, "nun": self.x2, "mask": self.mask}
         reward = self.reward(new_signal)
-        done = self.check_done()
+        done = self.check_done(action)
         truncated = self.check_end(1000)
         info = self._get_info()
         self.experiment["steps"].append(info.copy())
@@ -107,6 +118,19 @@ class MyEnv(gym.Env):
         """
         return np.where(self.mask == 1, self.x2, self.x1)
 
+    def compute_losses(self, new_signal) -> float:
+        total_reward = 0
+        adv, pred = losses.adversarial_loss(
+            new_signal, self.data.get_predicted_label(self.x2), self.model
+        )
+        spa = losses.sparsity_loss(self.mask)
+        sub = losses.contiguity_loss(self.mask)
+        total_reward += adv * self.weights["adversarial"]
+        total_reward += spa * self.weights["sparsity"]
+        total_reward += sub * self.weights["contiguity"]
+        total_reward -= 10 if pred != self.data.get_predicted_label(self.x2) else 0
+        return total_reward
+
     def reward(self, new_signal) -> float:
         """
         Calculate reward based on the current state.
@@ -115,29 +139,34 @@ class MyEnv(gym.Env):
         :return `reward`: Reward value for the step
         """
         # TODO: Assign a weight to the class penalty
-        total_reward = 0
-        adv, pred = losses.adversarial_loss(
-            new_signal, self.data.get_predicted_label(self.x1), self.model
-        )
-        spa = losses.sparsity_loss(self.mask)
-        sub = losses.contiguity_loss(self.mask)
-        total_reward += adv * self.weights["adversarial"]
-        total_reward += spa * self.weights["sparsity"]
-        total_reward += sub * self.weights["contiguity"]
-        total_reward -= 10 if pred != self.data.get_predicted_label(self.x1) else 0
+        total_reward = self.compute_losses(new_signal)
         reward = total_reward - self.last_reward
         self.last_reward = total_reward
         return reward
 
-    def check_done(self) -> bool:
+    def check_done(self, action, N: int = 10) -> bool:
         """
-        Verifies wheter the episode ends up naturally.
+        Verifies wheter the episode ends up naturally. In this case, it will check that the agent takes
+        N consecutive times the same action. If this happens, it will end the episode
 
+        :param `N`:
         :return `bool`: Boolean indicating if the episode has ended or not
         """
-        # TODO: Define the stop conditions (I guess we will not stop the training, only if the CFE is very close)
-        # An option is something like that: np.allclose(self.x1, self.x2, atol=1e-3)
-        return False
+        if np.array_equal(action, self.last_action):
+            self.same_action_counter += 1
+        else:
+            self.same_action_counter = 0
+        self.last_action = np.copy(action)
+        return True if self.same_action_counter >= N else False
+
+    def check_end(self, n: int = 500):
+        """
+        Verifies wether the episode is terminated by external boundary.
+
+        :param `n`: Number of steps to compute
+        :return `bool`: Boolean indicating if the episode must end up now
+        """
+        return False if self.steps < n else True
 
     def _get_info(self):
         """
@@ -153,27 +182,20 @@ class MyEnv(gym.Env):
             # "loss": ...,
         }
 
-    def check_end(self, n: int = 1000):
-        """
-        Verifies wether the episode is terminated by external boundary.
-
-        :param `n`: Number of steps to compute
-        :return `bool`: Boolean indicating if the episode must end up now
-        """
-        return False if self.steps < n else True
-
     def render(self):
         super().render()
         # TODO: Add a method to render an episode
         raise NotImplementedError
 
-    def reset(self, seed=None, save_res=False, new_name=None):
+    def reset(self, train=True, seed=None, save_res=False, new_name=None, options=None):
         super().reset(seed=seed)
         self.steps = 0
-        self.last_reward = 0
-        self.x1 = self.data.get_sample()
-        self.x2 = self.data.get_nun(self.x1)
+        self.x1 = self.data.get_sample(test=not train)
+        self.x2 = self.data.get_nun(self.x1, train=train)
+        self.last_reward = self.compute_losses(self.x2)
         self.mask = np.ones((self.data.get_dim(), self.data.get_len()), dtype=np.bool_)
+        self.last_action = self.action_space.sample()
+        self.same_action_counter = 0
         observation = {"original": self.x1, "nun": self.x2, "mask": self.mask}
         info = self._get_info()
         if save_res:
@@ -200,3 +222,23 @@ class MyEnv(gym.Env):
         makedirs("./results", exist_ok=True)
         with open(f"./results/{self.name}.json", "w") as f:
             dump(self.experiment, f, cls=ArrayTensorEncoder, indent=2)
+
+
+class DiscreteEnv(MyEnv):
+    def __init__(
+        self, dataset, model, weights_losses=None, experiment_name=None, **kwargs
+    ):
+        super().__init__(dataset, model, weights_losses, experiment_name, **kwargs)
+        self.action_space = gym.spaces.MultiDiscrete(
+            nvec=[self.data.get_len(), self.data.get_len()]
+        )  # Other option: start=[0, -self.data.get_len()//2]
+
+    def renew_mask(self, action):
+        """
+        Updates the mask with the new action.
+        """
+        mask_last_dim = self.mask.shape[-1]
+        start, size = action
+        for dim in range(len(self.mask)):
+            end = np.clip(start + size, 0, mask_last_dim)
+            self.mask[dim, start:end] = np.logical_not(self.mask[dim, start:end])
