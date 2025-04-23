@@ -1,5 +1,6 @@
 import torch as th
 from torch import nn
+from src.utils import load_model
 
 
 class Head1(nn.Module):
@@ -48,6 +49,22 @@ class Head2(nn.Module):
 
     def forward(self, x: th.Tensor) -> th.Tensor:
         return self.network(x)
+
+
+class SuperHead2(nn.Module):
+    def __init__(self, input_dim, dataset, experiment="fcn"):
+        super(SuperHead2, self).__init__()
+        self.head = load_model(
+            dataset, experiment
+        ).back_bone  # BE CAREFUL WITH THIS, NOT ALL MODELS WILL HAVE THIS LAYER'S NAME
+        for param in self.head.parameters():
+            param.requires_grad = False
+        self.learnable_layer = nn.Conv1d(input_dim, input_dim, kernel_size=1)
+
+    def forward(self, x: th.Tensor) -> th.Tensor:
+        x = self.head(x)
+        x = self.learnable_layer(x)
+        return x
 
 
 class DiscreteNetwork(nn.Module):

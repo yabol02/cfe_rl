@@ -1,16 +1,19 @@
 import gymnasium as gym
+import numpy as np
+from functools import lru_cache
 
 
-class FlatToDivModWrapper(gym.ActionWrapper):
-    def __init__(self, environment, N):
+class FlatToStartStepWrapper(gym.ActionWrapper):
+    def __init__(self, environment, N, mode="default"):
         super().__init__(environment)
         self.N = N
-        self.action_space = gym.spaces.Discrete(N * N)
+        self.action_space = gym.spaces.Discrete(self._num_actions(mode))
+        self.pairs = self._gen_pairs(mode)
 
+    @lru_cache(maxsize=128)
     def action(self, flat_action):
-        a = flat_action // self.N
-        b = flat_action % self.N
-        return a, b
+        start, step = self.pairs[int(flat_action)]
+        return start, step
 
     def reset(self, train=True, seed=None, save_res=False, new_name=None, options=None):
         return self.env.reset(
@@ -20,3 +23,62 @@ class FlatToDivModWrapper(gym.ActionWrapper):
             new_name=new_name,
             options=options,
         )
+
+    def _num_actions(self, mode):
+        if mode == "default":
+            return self.N**2
+        elif mode == "triangular":
+            return int(self.N * (self.N + 1) / 2)
+        elif mode == "steps":
+            raise NotImplementedError
+        else:
+            raise ValueError(f"{mode=} not suported")
+
+    def _gen_pairs(self, mode):
+        if mode == "default":
+            return self._all_pairs()
+        elif mode == "triangular":
+            return self._trian_pairs()
+        elif mode == "steps":
+            raise NotImplementedError()
+        else:
+            raise ValueError(f"{mode=} not supported")
+
+    def _all_pairs(self):
+        flat_actions = np.arange(self.N * self.N)
+        start = flat_actions // self.N
+        size = flat_actions % self.N
+        return np.stack((start, size), axis=1)
+
+    def _trian_pairs(self):
+        i_vals, j_vals = np.meshgrid(
+            np.arange(self.N), np.arange(self.N), indexing="ij"
+        )
+        mask = i_vals + j_vals < self.N
+        return np.stack((i_vals[mask], j_vals[mask]), axis=-1)
+
+
+class FlatToStartEndWrapper(gym.ActionWrapper):
+    def __init__(self, environment, N):
+        super().__init__(environment)
+        self.N = N
+        self.action_space = gym.spaces.Discrete(N * (N + 1) / 2)
+        self.pairs = self._generate_pairs()
+
+    @lru_cache(maxsize=128)
+    def action(self, flat_action):
+        start, end = self.pairs(flat_action)
+        return start, end
+
+    def reset(self, train=True, seed=None, save_res=False, new_name=None, options=None):
+        return self.env.reset(
+            train=train,
+            seed=seed,
+            save_res=save_res,
+            new_name=new_name,
+            options=options,
+        )
+
+    def _generate_pairs(self):
+        start_vals, end_vals = np.triu_indices(self.N)
+        return np.stack((start_vals, end_vals), axis=1)
