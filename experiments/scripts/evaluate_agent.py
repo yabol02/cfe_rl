@@ -6,8 +6,9 @@ sys.path.append(ROOT_DIR)
 
 import gymnasium as gym
 from src.data import DataManager
-from src.environments import DiscreteEnv, FlatToDivModWrapper
+from src.environments import DiscreteEnv, FlatToStartStepWrapper
 from src.utils import load_model
+from src.utils import predict_proba, l0_norm, num_subsequences
 from stable_baselines3 import DQN
 
 import numpy as np
@@ -25,14 +26,14 @@ def calculate_cfe(x1, x2, mask):
     return new_mask
 
 
-exp = "chinatown"
+exp = "ecg200"
 model = load_model(exp, "fcn")
 data = DataManager(f"UCR/{exp}", model, "standard")
 env = DiscreteEnv(data, model)
-discrete_env = FlatToDivModWrapper(env, N=data.get_len())
+discrete_env = FlatToStartStepWrapper(env, N=data.get_len(), mode="triangular")
 
 
-path_model = f"./results/dqn_prueba_{exp}.zip"
+path_model = f"./results/dqn_prueba_{exp}_2.zip"
 agent = DQN.load(path_model)
 
 n_episodes = 10
@@ -56,6 +57,7 @@ for n in range(n_episodes):
     total_reward = 0
     while not done and not end:
         action, _ = agent.predict(obs, deterministic=True)
+        action = int(action)
         obs, reward, done, end, info = discrete_env.step(action)
         total_reward += reward
         print(
@@ -70,5 +72,8 @@ for n in range(n_episodes):
         plt.pause(1 / fps)
 
     print(f"Episode {n+1}) Total reward = {total_reward}")
+    print(f"CFE proba = {predict_proba(model, new)[0]}")
+    print(f"L0 = {l0_norm(discrete_env.env.mask)}")
+    print(f"Nº Subsequences = {num_subsequences(discrete_env.env.mask)}")
     obs, info = discrete_env.reset(train=True)
     input("Continue...\n")

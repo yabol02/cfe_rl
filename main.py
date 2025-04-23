@@ -3,7 +3,7 @@ from stable_baselines3 import DQN
 from src.agents import CustomQPolicy, CustomFeatureExtractor
 from src.data import DataManager
 from src.utils import load_model
-from src.environments import DiscreteEnv, FlatToDivModWrapper
+from src.environments import DiscreteEnv, FlatToStartStepWrapper
 from stable_baselines3.common.env_checker import check_env
 
 exp = "ecg200"
@@ -12,7 +12,7 @@ data = DataManager(f"UCR/{exp}", model, "standard")
 
 
 env = DiscreteEnv(data, model, [1, 1, 0])
-discrete_env = FlatToDivModWrapper(env, N=data.get_len())
+discrete_env = FlatToStartStepWrapper(env, N=data.get_len(), mode="triangular")
 agent = DQN(
     CustomQPolicy,
     discrete_env,
@@ -33,4 +33,4 @@ agent = DQN(
     # optimize_memory_usage=True,  # útil para buffers grandes <== No funciona con espacio de observaciones de tipo Dict
 )
 agent.learn(total_timesteps=100_000, log_interval=10, progress_bar=True)
-agent.save(f"./results/dqn_prueba_{exp}")
+agent.save(f"./results/dqn_prueba_{exp}_2")
