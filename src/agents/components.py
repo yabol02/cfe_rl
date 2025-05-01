@@ -8,7 +8,12 @@ from ..models import Head1, SuperHead1, Head2, MLPExtractor
 
 
 class CustomFeatureExtractor(BaseFeaturesExtractor):
-    def __init__(self, observation_space: gym.spaces.Dict, features_dim: int = 128, name: str = None):
+    def __init__(
+        self,
+        observation_space: gym.spaces.Dict,
+        features_dim: int = 128,
+        name: str = None,
+    ):
         super(CustomFeatureExtractor, self).__init__(observation_space, features_dim)
 
         input_shape = observation_space.spaces["original"].shape
@@ -17,8 +22,12 @@ class CustomFeatureExtractor(BaseFeaturesExtractor):
         channels = input_shape[input_dims - 2]
         time_steps = input_shape[input_dims - 1]
 
-        self.cnn_extractor = Head1(channels) if name is None else SuperHead1(channels, name)
-        self.mlp_extractor = Head2(input_dim=3 * channels) # Previously we had output_dim=features_dim
+        self.cnn_extractor = (
+            Head1(channels) if name is None else SuperHead1(channels, name)
+        )
+        self.mlp_extractor = Head2(
+            input_dim=3 * channels
+        )  # Previously we had output_dim=features_dim
 
     def forward(self, observations: dict) -> th.Tensor:
         x = th.as_tensor(observations["original"], dtype=th.float32)
@@ -146,4 +155,3 @@ class CustomQPolicy(MultiInputPolicy):
             lr=lr_schedule(1),
             **self.optimizer_kwargs,
         )
-

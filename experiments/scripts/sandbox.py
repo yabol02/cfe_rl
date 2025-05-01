@@ -13,7 +13,7 @@ def plot_signal(X, X2, mask, dataset=None):
     submasks = extract_submasks(mask)
     for subm in submasks:
         x, y = subm
-        plt.axvspan(x-(1 if x>0 else 0), y, color="red", alpha=0.1)
+        plt.axvspan(x - (1 if x > 0 else 0), y, color="red", alpha=0.1)
 
     plt.legend()
     plt.title(f"CFE{f' - {dataset}' if dataset else ''}")
@@ -23,20 +23,20 @@ def plot_signal(X, X2, mask, dataset=None):
 def extract_submasks(mask):
     if not mask or not any(mask):
         return []
-    
+
     submasks = []
     start_idx = None
-    
+
     for i, value in enumerate(mask):
         if value and start_idx is None:
             start_idx = i
         elif not value and start_idx is not None:
             submasks.append([start_idx, i])
             start_idx = None
-    
+
     if start_idx is not None:
         submasks.append([start_idx, len(mask)])
-    
+
     return submasks
 
 
@@ -66,7 +66,10 @@ if show_data:
 
 X_samples1 = X[Y == 1]
 X_samples2 = X[Y != 1]
-X1 = X_samples1[np.random.choice(X_samples1.shape[0], size=1, replace=False)][0].flatten()
-X2 = X_samples2[np.random.choice(X_samples2.shape[0], size=1, replace=False)][0].flatten()
+X1 = X_samples1[np.random.choice(X_samples1.shape[0], size=1, replace=False)][
+    0
+].flatten()
+X2 = X_samples2[np.random.choice(X_samples2.shape[0], size=1, replace=False)][
+    0
+].flatten()
 plot_signal(X1, X2, mascara, dataset)
-

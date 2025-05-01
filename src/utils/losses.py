@@ -14,6 +14,7 @@ def adversarial_loss(sample, y_nun, model, device="cpu"):
     prob = probabilities[0, y_nun].item()
     return prob, pred_class
 
+
 def sparsity_loss(mask: np.ndarray) -> float:
     """
     Calculates the sparsity loss of a mask.
@@ -25,6 +26,7 @@ def sparsity_loss(mask: np.ndarray) -> float:
     if len(mask) == 0:
         raise ValueError("The mask cannot be empty.")
     return -l0_norm(mask) / mask.size
+
 
 def contiguity_loss(mask: np.ndarray, gamma: float = 0.25) -> float:
     """

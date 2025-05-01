@@ -21,6 +21,7 @@ import matplotlib.pyplot as plt
 
 plt.style.use("seaborn-v0_8-darkgrid")
 
+
 def calculate_cfe(x1, x2, mask):
     new_mask = np.where(mask, x2, x1)
     return new_mask

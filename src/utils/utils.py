@@ -165,7 +165,7 @@ def extract_submasks(mask):
     Identifies contiguous regions where the mask is True and returns their dimension, start and end indices.
 
     :param `mask`: Boolean mask indicating the regions of interest
-    :return: List of tuples (start_idx, end_idx) representing the masked regions
+    :return: List of tuples (dimension_idx, start_idx, end_idx) representing the masked regions
     :raises TypeError: If mask does not contain binary values (0/1 or True/False)
     """
     if not all(value in [True, False] for dim in mask for value in dim):
