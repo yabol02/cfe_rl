@@ -27,6 +27,9 @@ class MyEnv(gym.Env):
         self.mask = np.ones((self.data.get_dim(), self.data.get_len()), dtype=np.bool_)
         self.steps = 0
         self.last_reward = self.compute_losses(self.x2)
+        self.best_reward = self.last_reward.copy()
+        self.best_reward_step = 0
+        self.best_reward_mask = self.mask.copy()
         self.observation_space = gym.spaces.Dict(
             {
                 "original": gym.spaces.Box(
@@ -140,6 +143,10 @@ class MyEnv(gym.Env):
         """
         # TODO: Assign a weight to the class penalty
         total_reward = self.compute_losses(new_signal)
+        if total_reward > self.best_reward:
+            self.best_reward = total_reward
+            self.best_reward_step = self.steps
+            self.best_reward_mask = self.mask.copy()
         reward = total_reward - self.last_reward
         self.last_reward = total_reward
         return reward
@@ -147,17 +154,17 @@ class MyEnv(gym.Env):
     def check_done(self, action) -> bool:
         """
         Checks whether the episode should be terminated based on the repetition pattern of the recent actions.
-        
+
         Termination is triggered if any of the following conditions are met:
         - The last 5 actions are identical
         - At least 2 distinct actions appear 4 or more times each
         - At least 3 distinct actions appear 3 or more times each
-        
+
         :param action: The action to be added to the buffer and checked
         :return bool: True if any of the above conditions are satisfied, indicating the episode should end
         """
         self.actions_buffer.append(hash(action))
-        
+
         if len(self.actions_buffer) >= 5:
             last_actions = list(self.actions_buffer)[-5:]
             if all(a == last_actions[0] for a in last_actions):
@@ -168,11 +175,11 @@ class MyEnv(gym.Env):
         repeated_4 = sum(1 for count in counts.values() if count >= 4)
         if repeated_4 >= 2:
             return True
-        
+
         repeated_3 = sum(1 for count in counts.values() if count >= 3)
         if repeated_3 >= 3:
             return True
-        
+
         return False
 
     def check_end(self, n: int = 500):
@@ -209,6 +216,9 @@ class MyEnv(gym.Env):
         self.x1 = self.data.get_sample(test=not train)
         self.x2 = self.data.get_nun(self.x1, train=train)
         self.last_reward = self.compute_losses(self.x2)
+        self.best_reward = self.last_reward.copy()
+        self.best_reward_step = 0
+        self.best_reward_mask = self.mask.copy()
         self.mask = np.ones((self.data.get_dim(), self.data.get_len()), dtype=np.bool_)
         self.actions_buffer = deque(maxlen=16)
         observation = {"original": self.x1, "nun": self.x2, "mask": self.mask}
@@ -230,6 +240,13 @@ class MyEnv(gym.Env):
             "steps": list(),
         }
         return observation, info
+
+    def get_cfe(self):
+        return {
+            "reward": self.best_reward,
+            "step": self.best_reward_step,
+            "mask": self.best_reward_mask,
+        }
 
     def save_results(self):
         if self.name is None:
