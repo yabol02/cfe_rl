@@ -1,7 +1,7 @@
 import os
 import typing as tp
 import numpy as np
-from ..utils import label_encoder, predict_proba 
+from ..utils import label_encoder, predict_proba
 
 try:
     from torch import tensor, nn
@@ -21,11 +21,11 @@ class DataManager:
         scaling: str = "none",
         backend: str = "torch",
     ):
-        self.X_train, y_train, self.X_test, y_test = (
-            self.load_dataset(dataset, scaling, backend)
+        self.X_train, y_train, self.X_test, y_test = self.load_dataset(
+            dataset, scaling, backend
         )
         self.y_train_true, self.y_test_true = label_encoder(y_train, y_test)
-        self.name = dataset
+        self.name = dataset.split("/")[-1]
         self.scaling = scaling
         self.backend = backend
         self.model = model
@@ -148,7 +148,9 @@ class DataManager:
                 else self.get_predicted_label(sample, True if train else False)
             )
             unlike_indices = np.where(labels != sample_label)[0]
-            distances = np.linalg.norm(self.X_train[unlike_indices] - sample, ord=2, axis=2)
+            distances = np.linalg.norm(
+                self.X_train[unlike_indices] - sample, ord=2, axis=2
+            )
             sorted_idxs = unlike_indices[np.argsort(distances, axis=0)[::-1]].flatten()
             nuns[i] = self.X_train[sorted_idxs][:10]
 
@@ -250,7 +252,7 @@ class DataManager:
         labels = self.y_train_model if train else self.y_test_model
         label = labels[(data == sample).all(dim=2).squeeze()]
         return label
-    
+
     def get_shape(self):
         """
         Gets the shape of the samples.
@@ -282,11 +284,13 @@ class DataManager:
         :return: The number of temporal instances
         """
         return self.X_train.shape[2]
-    
+
     def __str__(self):
-        return (f"DataManager_{self.name}")
+        return f"<DataManager {self.name}>"
 
     def __repr__(self):
-        return (f"DataManager(dataset='{self.name}', model='{type(self.model).__name__}', scaling='{self.scaling}', backend='{self.backend}')")
+        return (
+            f"<DataManager(dataset='{self.name}', model='{type(self.model).__name__}')>"
+        )
 
     # TODO: Make a method that returns a sample and its NUNs

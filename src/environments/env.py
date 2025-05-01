@@ -1,6 +1,7 @@
 import gymnasium as gym
 import numpy as np
 from datetime import datetime
+from collections import deque, Counter
 from os import makedirs
 from json import dump
 from ..utils import losses
@@ -44,8 +45,7 @@ class MyEnv(gym.Env):
             low=0, high=1, shape=self.mask.shape, dtype=np.bool_
         )
         # self.action_space = gym.spaces.Box(low=0, high=self.data.get_len()-1, shape=(2,), dtype=np.uint32)
-        self.last_action = self.action_space.sample()
-        self.same_action_counter = 0
+        self.actions_buffer = deque(maxlen=16)
         self.experiment = {
             "experiment": self.name,
             "dataset": self.data.name,
@@ -144,20 +144,36 @@ class MyEnv(gym.Env):
         self.last_reward = total_reward
         return reward
 
-    def check_done(self, action, N: int = 10) -> bool:
+    def check_done(self, action) -> bool:
         """
-        Verifies wheter the episode ends up naturally. In this case, it will check that the agent takes
-        N consecutive times the same action. If this happens, it will end the episode
+        Checks whether the episode should be terminated based on the repetition pattern of the recent actions.
+        
+        Termination is triggered if any of the following conditions are met:
+        - The last 5 actions are identical
+        - At least 2 distinct actions appear 4 or more times each
+        - At least 3 distinct actions appear 3 or more times each
+        
+        :param action: The action to be added to the buffer and checked
+        :return bool: True if any of the above conditions are satisfied, indicating the episode should end
+        """
+        self.actions_buffer.append(hash(action))
+        
+        if len(self.actions_buffer) >= 5:
+            last_actions = list(self.actions_buffer)[-5:]
+            if all(a == last_actions[0] for a in last_actions):
+                return True
 
-        :param `N`:
-        :return `bool`: Boolean indicating if the episode has ended or not
-        """
-        if np.array_equal(action, self.last_action):
-            self.same_action_counter += 1
-        else:
-            self.same_action_counter = 0
-        self.last_action = np.copy(action)
-        return True if self.same_action_counter >= N else False
+        counts = Counter(self.actions_buffer)
+
+        repeated_4 = sum(1 for count in counts.values() if count >= 4)
+        if repeated_4 >= 2:
+            return True
+        
+        repeated_3 = sum(1 for count in counts.values() if count >= 3)
+        if repeated_3 >= 3:
+            return True
+        
+        return False
 
     def check_end(self, n: int = 500):
         """
@@ -194,8 +210,7 @@ class MyEnv(gym.Env):
         self.x2 = self.data.get_nun(self.x1, train=train)
         self.last_reward = self.compute_losses(self.x2)
         self.mask = np.ones((self.data.get_dim(), self.data.get_len()), dtype=np.bool_)
-        self.last_action = self.action_space.sample()
-        self.same_action_counter = 0
+        self.actions_buffer = deque(maxlen=16)
         observation = {"original": self.x1, "nun": self.x2, "mask": self.mask}
         info = self._get_info()
         if save_res:
