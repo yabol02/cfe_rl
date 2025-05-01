@@ -39,7 +39,7 @@ agent = DQN.load(path_model)
 n_episodes = 10
 fps = 10
 for n in range(n_episodes):
-    obs, info = discrete_env.reset(train=True)
+    obs, info = discrete_env.reset(train=False)
     orig = obs["original"]
     nun = obs["nun"]
     mask = obs["mask"]
@@ -75,5 +75,5 @@ for n in range(n_episodes):
     print(f"CFE proba = {predict_proba(model, new)[0]}")
     print(f"L0 = {l0_norm(discrete_env.env.mask)}")
     print(f"Nº Subsequences = {num_subsequences(discrete_env.env.mask)}")
-    obs, info = discrete_env.reset(train=True)
     input("Continue...\n")
+    obs, info = discrete_env.reset(train=True)

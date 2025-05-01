@@ -1,5 +1,6 @@
 import sys
 import os
+
 ROOT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "../.."))
 sys.path.append(ROOT_DIR)
 
@@ -7,19 +8,41 @@ sys.path.append(ROOT_DIR)
 import matplotlib.pyplot as plt
 import numpy as np
 import matplotlib.animation as animation
-import json
-from src.utils import utils
+from stable_baselines3 import DQN
+from src.data import DataManager
+from src.environments import DiscreteEnv, FlatToStartStepWrapper
+from src.utils import load_model, plot_signal, predict_proba, l0_norm, num_subsequences
 
-fig, ax = plt.subplots()
-with open("results/prueba.json", "r") as f:
-    res = json.load(f)
 
-x = res["sample"]
-nun = res["nun"]
-steps = res["steps"]
+def calculate_cfe(x1, x2, mask):
+    return np.where(mask, x2, x1)
 
-plt.style.use("seaborn-v0_8-darkgrid")
-fig, ax = plt.subplots()
+
+# --- Setup ---
+exp = "ecg200"
+model = load_model(exp, "fcn")
+data = DataManager(f"UCR/{exp}", model, "standard")
+env = DiscreteEnv(data, model)
+discrete_env = FlatToStartStepWrapper(env, N=data.get_len(), mode="triangular")
+path_model = f"./results/dqn_prueba_{exp}_2.zip"
+agent = DQN.load(path_model)
+
+# --- Episode ---
+obs, info = discrete_env.reset(train=False)
+orig = obs["original"]
+nun = obs["nun"]
+mask = obs["mask"]
+new = calculate_cfe(orig, nun, mask)
+
+steps = []
+done, end = False, False
+total_reward = 0
+
+while not done and not end:
+    action, _ = agent.predict(obs, deterministic=True)
+    obs, reward, done, end, info = discrete_env.step(int(action))
+    total_reward += reward
+    steps.append({"step": discrete_env.env.steps, "mask": discrete_env.env.mask.copy()})
 
 
 def init():
@@ -32,12 +55,21 @@ def init():
 
 def update(frame):
     step_data = steps[frame]
-    mask = np.array(step_data["mask"])
-    utils.plot_signal(x, nun, mask, ax, dataset=f"Step {step_data['step']}")
+    mask = step_data["mask"]
+    plot_signal(orig, nun, mask, ax, dataset=f"Step {step_data['step']}")
 
 
+plt.style.use("seaborn-v0_8-darkgrid")
+fig, ax = plt.subplots()
 ani = animation.FuncAnimation(
     fig, update, frames=len(steps), init_func=init, repeat=False, interval=100
 )
 
 plt.show()
+
+# --- Final info ---
+final_cfe = calculate_cfe(orig, nun, discrete_env.env.mask)
+print(f"Total reward = {total_reward}")
+print(f"CFE proba = {predict_proba(model, final_cfe)[0]}")
+print(f"% Changes = {l0_norm(discrete_env.env.mask)/discrete_env.env.mask.size}")
+print(f"Nº Subsequences = {num_subsequences(discrete_env.env.mask)}")
