@@ -124,8 +124,6 @@ def plot_signal(X, X2, mask, ax, dataset=None):
             f"Variables cannot be properly flattened: {X.shape}, {X2.shape}, {mask.shape}"
         )
 
-    X, X2, mask = X_flat, X2_flat, mask_flat
-
     if X.shape != X2.shape:
         raise ValueError(
             f"`X` and `X2` must have the same size, but got {X.shape} and {X2.shape}"
@@ -134,8 +132,6 @@ def plot_signal(X, X2, mask, ax, dataset=None):
         raise ValueError(
             f"`X` and `mask` must have the same size, but got {X.shape} and {mask.shape}"
         )
-    if mask.ndim != 1:
-        raise ValueError("`mask` must be a one-dimensional array")
     try:
         mask = mask.astype(np.bool_)
     except ValueError:
@@ -144,13 +140,13 @@ def plot_signal(X, X2, mask, ax, dataset=None):
     mod = X.copy()
     mod[mask] = X2[mask]
     ax.clear()
-    ax.plot(X2, c="k", label="NUN")
-    ax.plot(X, c="b", label="Original")
-    ax.plot(mod, c="r", label="CFE")
+    ax.plot(X2_flat, c="k", label="NUN")
+    ax.plot(X_flat, c="b", label="Original")
+    ax.plot(mod.flatten(), c="r", label="CFE")
 
     submasks = extract_submasks(mask)
     for subm in submasks:
-        x, y = subm
+        dim, x, y = subm  # In the future we will have more dimensions
         ax.axvspan(
             x - (1 if x > 0 else 0),
             y - (1 if y >= len(X) else 0),
@@ -158,6 +154,7 @@ def plot_signal(X, X2, mask, ax, dataset=None):
             alpha=0.1,
         )
 
+    ax.legend(loc="upper left", fontsize="x-small")
     ax.set_title(
         f"CFE{f' - {dataset}' if dataset else ''}", fontsize=14, fontweight="bold"
     )
@@ -194,7 +191,7 @@ def extract_submasks(mask):
     return submasks
 
 
-def load_model(dataset, experiment, t="best"):
+def load_model(dataset, experiment, mode="best"):
     """
     Loads a trained model from the specified experiment based on the chosen criteria.
 
@@ -211,16 +208,16 @@ def load_model(dataset, experiment, t="best"):
 
     exp_path = os.path.join("models", dataset, experiment)
     df = read_excel(f'{os.path.join(exp_path, "all_results.xlsx")}')
-    if t == "best":
+    if mode == "best":
         exp_hash = df.experiment_hash.iloc[0]
-    elif t == "random":
+    elif mode == "random":
         exp_hash = df.experiment_hash.sample(n=1).iloc[0]
-    elif t == "worst":
+    elif mode == "worst":
         exp_hash = df.experiment_hash.iloc[-1]
-    elif t == "median":
+    elif mode == "median":
         exp_hash = df.experiment_hash.iloc[len(df) // 2]
-    elif t.isdigit():
-        idx = int(t)
+    elif mode.isdigit():
+        idx = int(mode)
         if idx < 0 or idx >= len(df):
             raise ValueError(f"Index {idx} out of range. Valid range: 0-{len(df)-1}")
         exp_hash = df.experiment_hash.iloc[idx]

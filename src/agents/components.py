@@ -4,11 +4,11 @@ import typing as tp
 from stable_baselines3.common.torch_layers import BaseFeaturesExtractor
 from stable_baselines3.common.policies import ActorCriticPolicy
 from stable_baselines3.dqn import MultiInputPolicy
-from ..models import Head1, Head2, MLPExtractor
+from ..models import Head1, SuperHead1, Head2, MLPExtractor
 
 
 class CustomFeatureExtractor(BaseFeaturesExtractor):
-    def __init__(self, observation_space: gym.spaces.Dict, features_dim: int = 128):
+    def __init__(self, observation_space: gym.spaces.Dict, features_dim: int = 128, name: str = None):
         super(CustomFeatureExtractor, self).__init__(observation_space, features_dim)
 
         input_shape = observation_space.spaces["original"].shape
@@ -17,7 +17,7 @@ class CustomFeatureExtractor(BaseFeaturesExtractor):
         channels = input_shape[input_dims - 2]
         time_steps = input_shape[input_dims - 1]
 
-        self.cnn_extractor = Head1(channels)
+        self.cnn_extractor = Head1(channels) if name is None else SuperHead1(channels, name)
         self.mlp_extractor = Head2(input_dim=3 * channels) # Previously we had output_dim=features_dim
 
     def forward(self, observations: dict) -> th.Tensor:
@@ -107,6 +107,7 @@ class CustomQPolicy(MultiInputPolicy):
         lr_schedule: tp.Callable[[float], float],
         mask_shape,
         input_dim: int,
+        super_head: str = None,
         *args,
         **kwargs
     ):
@@ -115,7 +116,7 @@ class CustomQPolicy(MultiInputPolicy):
             action_space,
             lr_schedule,
             features_extractor_class=CustomFeatureExtractor,
-            features_extractor_kwargs=dict(features_dim=input_dim),
+            features_extractor_kwargs=dict(features_dim=input_dim, name=super_head),
             *args,
             **kwargs,
         )

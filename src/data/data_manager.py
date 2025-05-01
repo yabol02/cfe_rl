@@ -26,6 +26,8 @@ class DataManager:
         )
         self.y_train_true, self.y_test_true = label_encoder(y_train, y_test)
         self.name = dataset
+        self.scaling = scaling
+        self.backend = backend
         self.model = model
         self.y_train_model = predict_proba(self.model, self.X_train)[1]
         self.y_test_model = predict_proba(self.model, self.X_test)[1]
@@ -280,5 +282,11 @@ class DataManager:
         :return: The number of temporal instances
         """
         return self.X_train.shape[2]
+    
+    def __str__(self):
+        return (f"DataManager_{self.name}")
+
+    def __repr__(self):
+        return (f"DataManager(dataset='{self.name}', model='{type(self.model).__name__}', scaling='{self.scaling}', backend='{self.backend}')")
 
     # TODO: Make a method that returns a sample and its NUNs
