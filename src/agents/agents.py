@@ -1,194 +1,248 @@
-import numpy as np
-import typing as tp
-import torch as th
-from abc import ABC, abstractmethod
-from stable_baselines3 import PPO
+import os
+import json
+import hashlib
+import pandas as pd
+from .components import CustomQPolicy, CustomACPolicy
+from ..data import DataManager
+from ..environments import MyEnv, DiscreteEnv, FlatToStartStepWrapper
+from ..utils import load_model
+from datetime import datetime
+from stable_baselines3 import PPO, DQN
 
 
-class Agent(ABC):
+def generate_experiment_hash(
+    dataset: str, experiment: str, algorithm: str, start_time: str, weights_losses: list
+) -> str:
     """
-    Abstract base class for agents.
+    Generates a stable and unique hash to identify the experiment.
 
-    :param `mask_length`: Length of the mask that the agent will modify.
-    :param `policy`: Classification model for decision making (optional).
-    :param `kwargs`: Additional configurations.
+    :param `dataset`: Name of the dataset
+    :param `experiment`: Name of the experiment
+    :param `algorithm`: Name of the RL algorithm
+    :param `start_time`: Timestamp of the experiment start
+    :param weight_losses: List with the weights of the losses
+    :return: String with the hash of the experiment
     """
-
-    def __init__(self, mask_length: int, policy=None, **kwargs):
-        self.configuration = kwargs
-        self.policy = policy  # Model for decision making
-        self.observation = None
-        self.mask = np.ones(mask_length)
-
-    @abstractmethod
-    def decide(self) -> tp.List:
-        """
-        Makes a decision based on the current observation.
-
-        :return `action`: A list action of the form [start, size]
-        """
-        raise NotImplementedError("This method should be overridden by subclasses")
-
-    @abstractmethod
-    def map_action(self, action: tp.Tuple[int, int]) -> np.ndarray:
-        """
-        Transforms the mask according to the given action.
-
-        :param `action`: Shape tuple (start of transformation, size of transformation)
-        :return: The modified mask
-        """
-        raise NotImplementedError("This method should be overridden by subclasses")
-
-    def step(self, observation):
-        """
-        Performs a step of the agent with the given observation.
-
-        :param `observation`: Observation from the environment.
-        :return `new_mask`: The new modified mask.
-        """
-        self.observation = observation
-        action = self.decide()
-        new_mask = self.map_action(action)
-        return new_mask
-
-    def reset_mask(self):
-        """
-        Resets the mask to its initial state (all ones).
-        """
-        self.mask = np.ones(len(self.mask))
-        return self.mask
-
-    def save(self):
-        raise NotImplementedError
-
-    def load(self):
-        raise NotImplementedError
-
-    # TODO: Add methods for saving and loading the agent's state
-    # TODO: Implement a method to evaluate the agent's performance
-    # TODO: Add compatibility with stable baselines for training and evaluation
-    # TODO: Initialize the model/policy using PyTorch or integration with Stable Baselines <-- DONE
-    # TODO: Consider adding an action_space and observation_space attributes for better definition
-    # TODO: Think of a better way to customize the agent than using kwargs
+    hash_string = (
+        f"{dataset}_{experiment}_{algorithm}_{start_time}_{str(weights_losses)}"
+    )
+    return hashlib.sha256(hash_string.encode()).hexdigest()[:12]
 
 
-class RandomAgent:
+def setup_directories(hash_exp: str, params: dict) -> str:
     """
-    Agent that makes random decisions on a mask.
+    Creates the necessary directories and saves the experiment parameters.
 
-    :param `mask_length`: Length of the mask that the agent will modify.
-    :param `model`: Classification model for decision making (optional).
-    :param `kwargs`: Additional configurations.
+    :param `hash_exp`: Unique identifier for the experiment
+    :param `params`: Dictionary with the experiment parameters
+    :return `results_dir`: Path to the results directory
     """
+    results_dir = os.path.join("results", hash_exp)
+    os.makedirs(results_dir, exist_ok=True)
 
-    # TODO: Add the classifier to the class constructor (for other agents) => self.model = model
-    def __init__(self, mask_length: int, **kwargs):
-        self.configuration = {**kwargs}
-        self.observation = None
-        self.mask = np.ones(mask_length, dtype=np.bool_)
+    with open(os.path.join(results_dir, "params.json"), "w") as f:
+        json.dump(params, f, indent=4)
 
-    def decide(self) -> tp.List:
-        """
-        Makes a random decision on where to start and the size of the transformation
-
-        :return `action`: A list action of the form [start, size]
-        """
-        # TODO: Add that the observations be passed to the model for decision making => self.model.predict(observation)
-        start = int(np.random.uniform(0, 1) * len(self.mask))
-        size = int(np.random.uniform(0, 1) * len(self.mask))
-        action = [start, size]
-        return action
-
-    def map_action(self, action: tp.Tuple[int, int]) -> np.ndarray:
-        """
-        Transforms the mask according to the given action
-
-        :param `action`: Shape tuple (start of transformation, size of transformation)
-        :return: The modified mask
-        """
-        start, size = action
-        start = max(0, start)
-        end = min(len(self.mask), start + size)
-        self.mask[start:end] = np.logical_not(self.mask[start:end])
-        return self.mask
-
-    def step(self, observation):
-        """
-        Performs a step of the agent with the given observation.
-
-        :param `observation`: Observation from the environment.
-        :return `new_mask`: The new modified mask.
-        """
-        self.observation = observation
-        action = (
-            self.decide()
-        )  # TODO: This mehod must somehow receive the observation from the environment
-        print(action)
-        new_mask = self.map_action(action)
-        return new_mask
-
-    def reset_mask(self):
-        """
-        Resets the mask to its initial state (all ones)
-        """
-        return np.ones(len(self.mask))
+    return results_dir
 
 
-class PPOAgent(Agent):
-    def __init__(self, mask_length, policy, environment, **kwargs):
-        super(PPOAgent, self).__init__(mask_length, policy)
-        self.observation = None
-        self.environment = environment
-        self.model = PPO(
-            self.policy,
-            self.environment,
-            policy_kwargs=dict(
-                mask_length=mask_length, map_function=map_action_to_mask
-            ),
-            verbose=0,
+def record_experiment_metadata(
+    hash_exp: str,
+    start_time: str,
+    dataset: str,
+    algorithm: str,
+    weights_losses: list,
+    mapping_mode: str = None,
+) -> None:
+    """
+    Records the experiment metadata in an Excel file.
+
+    :param `hash_exp`: Unique identifier for the experiment
+    :param `start_time`: Start time of the experiment
+    :param `dataset`: Name of the dataset
+    :param `algorithm`: Name of the RL algorithm
+    :param `weight_losses`: List with the weights of the losses
+    :param `mapping_mode`: Mode for the wrapper
+    """
+    excel_path = os.path.join("results", "experiments.xlsx")
+    new_entry = {
+        "hash": hash_exp,
+        "date": start_time,
+        "dataset": dataset,
+        "algorithm": algorithm,
+        "mode": mapping_mode,
+    }
+
+    if os.path.exists(excel_path):
+        df = pd.read_excel(excel_path)
+        df = pd.concat([df, pd.DataFrame([new_entry])], ignore_index=True)
+    else:
+        df = pd.DataFrame([new_entry])
+
+    df.to_excel(excel_path, index=False)
+
+
+def setup_environment(
+    data, model, weights_losses, algorithm: str, mapping_mode: str = None
+):
+    """
+    Sets up the learning environment according to the algorithm and mapping mode.
+
+    :param `data`: DataManager instance with the dataset
+    :param `model`: Model instance
+    :param `weights_losses`: Weights for the losses
+    :param `algorithm`: Name of the RL algorithm
+    :param `mapping_mode`: Mode for the FlatToStartStepWrapper
+    :return: Environment instance
+    """
+    if algorithm in ["DQN"]:
+        env = DiscreteEnv(data, model, weights_losses)
+    else:
+        env = MyEnv(data, model, weights_losses)
+
+    if mapping_mode is not None:
+        env = FlatToStartStepWrapper(env, N=data.get_len(), mode=mapping_mode)
+
+    return env
+
+
+def create_dqn_agent(
+    env, data: DataManager, hash_exp: str, params: dict, super_head: str = None
+):
+    """
+    Creates a DQN agent with the specified configuration.
+
+    :param `env`: Environment instance
+    :param `data`: DataManager instance with the dataset
+    :param `hash_exp`: Unique identifier for the experiment
+    :param `params`: Dictionary with the experiment parameters
+    :param `super_head`: Name of the dataset or None (for super_head configuration)
+    :return `agent`: DQN agent instance
+    """
+    agent = DQN(
+        policy=CustomQPolicy,
+        env=env,
+        policy_kwargs=dict(
+            mask_shape=data.get_len(),
+            input_dim=data.get_len(),
+            super_head=super_head,
+            net_arch=[256, 512],
+        ),
+        learning_rate=params.get("learning_rate", 0.0001),
+        buffer_size=params.get("buffer_size", 10_000),
+        learning_starts=params.get("learning_starts", 100),
+        batch_size=params.get("batch_size", 128),
+        tau=params.get("tau", 1),
+        gamma=params.get("gamma", 0.99),
+        train_freq=params.get("train_freq", 25),
+        gradient_steps=params.get("gradient_steps", 1),
+        # replay_buffer_class=...,
+        # replay_buffer_kwargs=...,
+        target_update_interval=params.get("target_update_interval", 10_000),
+        exploration_fraction=params.get("exploration_fraction", 0.1),
+        exploration_initial_eps=params.get("exploration_initial_eps", 1),
+        exploration_final_eps=params.get("exploration_final_eps", 0.05),
+        max_grad_norm=params.get("max_grad_norm", 10),
+        stats_window_size=params.get("stats_window_size", 100),
+        tensorboard_log=f"./results/{hash_exp}",
+        verbose=2,
+    )
+    return agent
+
+
+def create_ppo_agent(env, data, hash_exp: str, params: dict, super_head: str = None):
+    """
+    Creates a PPO agent with the specified configuration.
+
+    :param `env`: Environment instance
+    :param `data`: DataManager instance with the dataset
+    :param `hash_exp`: Unique identifier for the experiment
+    :param `params`: Dictionary with the experiment parameters
+    :param `super_head`: Name of the dataset or None (for super_head configuration)
+    :return `agent`: PPO agent instance
+    """
+    agent = PPO(
+        policy=CustomACPolicy,
+        env=env,
+        # Add here the parameters for PPO
+        verbose=2,
+        tensorboard_log=f"./results/{hash_exp}",
+    )
+    return agent
+
+
+def build_agent(
+    algorithm: str,
+    env,
+    data,
+    params: dict,
+    hash_exp: str,
+    super_head: str = None,
+):
+    """
+    Builds the learning agent according to the specified algorithm.
+
+    :param `algorithm`: Name of the RL algorithm
+    :param `env`: Environment instance
+    :param `data`: DataManager instance with the dataset
+    :param `params`: Dictionary with the experiment parameters
+    :param `hash_exp`: Unique identifier for the experiment
+    :param `super_head`: Name of the dataset or None (for super_head configuration)
+    :return: Agent instance
+    """
+    if algorithm == "DQN":
+        return create_dqn_agent(env, data, hash_exp, params, super_head)
+    elif algorithm == "PPO":
+        return create_ppo_agent(env, data, hash_exp, params, super_head)
+    else:
+        raise ValueError(f"Algorithm '{algorithm}' not supported")
+
+
+def prepare_experiment(dataset: str, params: dict, dataset_path: str = "./data/"):
+    """
+    Main function that prepares all the necessary components for the experiment.
+
+    :param `dataset`: Name of the dataset
+    :param `params`: Dictionary with the experiment parameters
+    :return: Tuple with (hash_exp, data, env, agent)
+    """
+    start = datetime.now().strftime("%Y-%m-%d_%H:%M:%S")
+    experiment = params.get("experiment", "fcn")
+    scaling = params.get("scaling", "standard")
+    algorithm = params.get("algorithm")
+    weights_losses = params.get("weights_losses")
+    mapping_mode = params.get("mapping_mode")
+    super_head = params.get("super_head")
+    super_head = dataset if super_head is not None else None
+
+    possible_algorithms = ["DQN", "PPO"]
+    if algorithm not in possible_algorithms:
+        raise ValueError(
+            f"The experiment must be some of the next: {possible_algorithms}"
         )
 
-    def decide(self):
-        action, _ = self.model.predict(self.observation, deterministic=True)
-        # print(action)
-        start = int(action[0] * len(self.mask))
-        end = int(action[1] * len(self.mask))
-        return start, end
+    hash_exp = generate_experiment_hash(
+        dataset, experiment, algorithm, start, weights_losses
+    )
+    setup_directories(hash_exp, params)
+    record_experiment_metadata(
+        hash_exp, start, dataset, algorithm, weights_losses, mapping_mode
+    )
+    model = load_model(dataset=dataset, experiment=experiment)
+    dataset_path = os.path.join(dataset_path, dataset)
+    data = DataManager(dataset=dataset_path, model=model, scaling=scaling)
 
-    def map_action(self, action, mask):
-        start, size = action
-        start = max(0, start)
-        end = min(len(mask), start + size)
-        mask[start:end] = np.logical_not(mask[start:end])
-        return mask
+    env = setup_environment(data, model, weights_losses, algorithm, mapping_mode)
 
-    def step(self, observation):
-        self.observation = observation
-        action = self.decide()
-        new_mask = self.map_action(action)
-        return new_mask
+    agent = build_agent(algorithm, env, data, params, hash_exp, super_head)
 
-    def learn(self):
-        self.model.collect_rollouts(
-            self.environment,
-            callback=None,
-            rollout_buffer=None,
-            n_rollout_steps=10,
-            # n_episodes=1,
-            # n_steps=1,
-            # action_noise=None,
-            # learning_starts=0,
-            # log_interval=1,
-            # progress_bar=False,
-        )
-        self.model.train()
+    return hash_exp, data, env, agent
 
 
-def map_action_to_mask(action, mask):
-    start, size = action
-    start = th.clamp(start, min=0)
-    end = th.clamp(start + size, max=mask.shape[0])
+def load_saved_experiment():
+    """This will return environment and agent"""
+    raise NotImplementedError()
 
-    mask[start:end] ^= 1
 
-    return mask
+def evaluate_agent():
+    raise NotImplementedError()

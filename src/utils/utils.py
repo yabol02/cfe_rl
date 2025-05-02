@@ -1,9 +1,11 @@
 import os
+import json
+import re
+import itertools
 import torch as th
 import typing as tp
 import numpy as np
 from torch.nn import functional
-from json import JSONEncoder
 
 
 def predict_proba(model, data, device="cpu"):
@@ -229,8 +231,55 @@ def load_model(dataset, experiment, mode="best"):
     return model
 
 
-class ArrayTensorEncoder(JSONEncoder):
+def load_json_params(file_path: str) -> dict:
+    """
+    Loads a JSON file into a dictionary, ignoring lines with '//' comments.
+
+    :param `file_path`: Path to the JSON file
+    :return: Dictionary with parameters
+    """
+    with open(file_path, "r") as f:
+        content = f.readlines()
+
+    # Remove lines with comments
+    cleaned = []
+    for line in content:
+        if '//' in line:
+            line = re.sub(r'(?<!http:)//.*', '', line)
+        if line.strip():
+            cleaned.append(line)
+
+    json_str = ''.join(cleaned)
+    return json.loads(json_str)
+
+
+def generate_param_combinations(config: tp.Dict[str, tp.Any]) -> tp.List[tp.Dict[str, tp.Any]]:
+    """
+    Generates all combinations of parameter configurations to run experiments.
+
+    :param `config`: Dictionary with 'static' and 'grid' fields
+    :return `all_configs`: List of parameter dictionaries
+    """
+    static_params = config.get("static", {})
+    grid_params = config.get("grid", {})
+
+    if not grid_params:
+        return [static_params]
+
+    keys, values = zip(*grid_params.items())
+    combinations = list(itertools.product(*values))
+
+    all_configs = []
+    for combo in combinations:
+        combo_dict = dict(zip(keys, combo))
+        full_config = {**static_params, **combo_dict}
+        all_configs.append(full_config)
+
+    return all_configs
+
+
+class ArrayTensorEncoder(json.JSONEncoder):
     def default(self, obj):
         if isinstance(obj, (np.ndarray, th.Tensor)):
             return obj.tolist()
-        return JSONEncoder.default(self, obj)
+        return json.JSONEncoder.default(self, obj)

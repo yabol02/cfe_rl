@@ -1,0 +1,24 @@
+{
+    "static":{
+        "experiment": "fcn",
+        "algorithm": "DQN",
+        "scaling": "standard",
+        "weights_losses": [1, 1, 0],
+        "buffer_size": 10000,
+        "learning_starts": 5000,
+        "batch_size": 128,
+        "gamma": 0.99,
+        "train_freq": 25,
+        "learning_rate": 0.0001,
+        "target_update_interval": 2000,
+        "exploration_fraction": 0.8,
+        "exploration_initial_eps": 0.9,
+        "exploration_final_eps": 0.05
+    },
+    "grid":{
+        "super_head": [null, true],
+        "mapping_mode": ["default", "triangular"],
+        "tau": [0.2, 0.6, 1],
+        "gamma": [0, 0.2, 0.5]
+    }
+}
