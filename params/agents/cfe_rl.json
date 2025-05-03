@@ -4,6 +4,8 @@
         "algorithm": "DQN",
         "scaling": "standard",
         "weights_losses": [1, 1, 0],
+        "super_head": null,
+        "timesteps": 100000,
         "buffer_size": 10000,
         "learning_starts": 5000,
         "batch_size": 128,
@@ -16,7 +18,6 @@
         "exploration_final_eps": 0.05
     },
     "grid":{
-        "super_head": [null, true],
         "mapping_mode": ["default", "triangular"],
         "tau": [0.2, 0.6, 1],
         "gamma": [0, 0.2, 0.5]

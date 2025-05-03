@@ -210,11 +210,20 @@ class MyEnv(gym.Env):
         # TODO: Add a method to render an episode
         raise NotImplementedError
 
-    def reset(self, train=True, seed=None, save_res=False, new_name=None, options=None):
+    def reset(
+        self,
+        sample=None,
+        nun=None,
+        train=True,
+        seed=None,
+        save_res=False,
+        new_name=None,
+        options=None,
+    ):
         super().reset(seed=seed)
         self.steps = 0
-        self.x1 = self.data.get_sample(test=not train)
-        self.x2 = self.data.get_nun(self.x1, train=train)
+        self.x1 = self.data.get_sample(test=not train) if sample is None else sample
+        self.x2 = self.data.get_nun(self.x1, train=train) if nun is None else nun
         self.last_reward = self.compute_losses(self.x2)
         self.best_reward = self.last_reward.copy()
         self.best_reward_step = 0

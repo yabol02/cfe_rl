@@ -1,36 +1,21 @@
-import gymnasium as gym
-from stable_baselines3 import DQN
-from src.agents import CustomQPolicy, CustomFeatureExtractor
-from src.data import DataManager
-from src.utils import load_model
-from src.environments import DiscreteEnv, FlatToStartStepWrapper
-from stable_baselines3.common.env_checker import check_env
+from src.agents import prepare_experiment, save_agent, load_saved_experiment
+from src.utils import load_json_params, generate_param_combinations
 
-exp = "ecg200"
-model = load_model(exp, "fcn")
-data = DataManager(f"UCR/{exp}", model, "standard")
+DATASETS = ["chinatown", "ecg200"]
 
+parameters = load_json_params("./params/agents/cfe_rl.json")
+combinations = generate_param_combinations(parameters)
 
-env = DiscreteEnv(data, model, [1, 1, 0])
-discrete_env = FlatToStartStepWrapper(env, N=data.get_len(), mode="triangular")
-agent = DQN(
-    CustomQPolicy,
-    discrete_env,
-    policy_kwargs=dict(
-        mask_shape=data.get_len(), input_dim=data.get_len(), net_arch=[256, 512]
-    ),
-    # tau=0.6,
-    target_update_interval=2_000,
-    gamma=0,
-    train_freq=25,
-    buffer_size=10_000,
-    learning_starts=5_000,
-    batch_size=128,
-    exploration_fraction=0.8,
-    exploration_final_eps=0.05,
-    verbose=2,
-    # tensorboard_log="./dqn_logs/",
-    # optimize_memory_usage=True,  # útil para buffers grandes <== No funciona con espacio de observaciones de tipo Dict
-)
-agent.learn(total_timesteps=100_000, log_interval=10, progress_bar=True)
-agent.save(f"./results/dqn_prueba_{exp}_2")
+for dataset in DATASETS:
+    for combo in combinations:
+        hash_experiment, data, environment, agent = prepare_experiment(
+            dataset, combo, dataset_path="/UCR/"
+        )
+        agent.learn(
+            total_timesteps=combo.get("timesteps", 100_000),
+            callback=None,
+            progress_bar=True,
+        )
+        save_agent(hash_experiment, data, agent, environment)
+
+# agent2, env2, data2 = load_saved_experiment(hash_experiment)

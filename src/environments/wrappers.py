@@ -1,6 +1,5 @@
 import gymnasium as gym
 import numpy as np
-from functools import lru_cache
 
 
 class FlatToStartStepWrapper(gym.ActionWrapper):
@@ -10,13 +9,14 @@ class FlatToStartStepWrapper(gym.ActionWrapper):
         self.action_space = gym.spaces.Discrete(self._num_actions(mode))
         self.pairs = self._gen_pairs(mode)
 
-    @lru_cache(maxsize=128)
     def action(self, flat_action):
         start, step = self.pairs[int(flat_action)]
         return start, step
 
-    def reset(self, train=True, seed=None, save_res=False, new_name=None, options=None):
+    def reset(self, sample=None, nun=None, train=True, seed=None, save_res=False, new_name=None, options=None):
         return self.env.reset(
+            sample=sample,
+            nun=nun,
             train=train,
             seed=seed,
             save_res=save_res,
@@ -65,13 +65,14 @@ class FlatToStartEndWrapper(gym.ActionWrapper):
         self.action_space = gym.spaces.Discrete(N * (N + 1) / 2)
         self.pairs = self._generate_pairs()
 
-    @lru_cache(maxsize=128)
     def action(self, flat_action):
         start, end = self.pairs(flat_action)
         return start, end
 
-    def reset(self, train=True, seed=None, save_res=False, new_name=None, options=None):
+    def reset(self, sample=None, nun=None, train=True, seed=None, save_res=False, new_name=None, options=None):
         return self.env.reset(
+            sample=sample,
+            nun=nun,
             train=train,
             seed=seed,
             save_res=save_res,
