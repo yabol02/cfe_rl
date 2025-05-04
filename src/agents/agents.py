@@ -367,7 +367,7 @@ def load_saved_experiment(hash_exp: str, model_name: str = "model.zip"):
         params = json.load(f)
 
     dataset_path = params.get("dataset_path")
-    dataset = dataset_path.split("/")[0]
+    dataset = dataset_path.split("/")[-1]
     experiment = params.get("experiment", "fcn")
     algorithm = params.get("algorithm")
     weights_losses = params.get("weights_losses")
@@ -390,8 +390,7 @@ def load_saved_experiment(hash_exp: str, model_name: str = "model.zip"):
         )
 
     model = load_model(dataset=dataset, experiment=experiment)
-    dataset_full_path = os.path.join(dataset_path, dataset)
-    data = DataManager(dataset=dataset_full_path, model=model, scaling=scaling)
+    data = DataManager(dataset=dataset_path, model=model, scaling=scaling)
     env = setup_environment(data, model, weights_losses, algorithm, mapping_mode)
 
     if algorithm == "DQN":
