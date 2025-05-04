@@ -258,7 +258,7 @@ class MyEnv(gym.Env):
             "mask": self.best_reward_mask,
         }
 
-    def save_results(self, def_name=f"exp_{datetime.now().strftime("%Y-%m-%d_%H:%M")}"):
+    def save_results(self, def_name=f"exp_{datetime.now().strftime('%Y-%m-%d_%H:%M')}"):
         if self.name is None:
             self.name = def_name
         makedirs("./results", exist_ok=True)

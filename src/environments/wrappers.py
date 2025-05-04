@@ -34,9 +34,6 @@ class FlatToStartStepWrapper(gym.ActionWrapper):
             options=options,
         )
 
-    def step(self, action):
-        return self.env.step(action)
-
     def get_cfe(self):
         return self.env.get_cfe()
 

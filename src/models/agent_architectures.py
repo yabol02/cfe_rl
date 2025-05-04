@@ -59,7 +59,9 @@ class SuperHead1(nn.Module):
         ).back_bone  # BE CAREFUL WITH THIS! NOT ALL MODELS WILL HAVE THIS LAYER'S NAME
         for param in self.head.parameters():
             param.requires_grad = False
-        self.learnable_layer = nn.Conv1d(input_dim, input_dim, kernel_size=1)
+        self.learnable_layer = nn.Conv1d(
+            128, input_dim, kernel_size=1
+        )  # AS BEFORE, MAYBE OTHER MODELS DON'T HAVE A 128 DIMENSIONS OUTPUT
 
     def forward(self, x: th.Tensor) -> th.Tensor:
         x = self.head(x)
