@@ -53,6 +53,8 @@ class FlatToStartStepWrapper(gym.ActionWrapper):
             return int(self.N * (self.N + 1) / 2)
         elif mode == "steps":
             return self.N * 4
+        elif mode == "value":
+            return self.N
         else:
             raise ValueError(f"{mode=} not suported")
 
@@ -62,7 +64,9 @@ class FlatToStartStepWrapper(gym.ActionWrapper):
         elif mode == "triangular":
             return self._trian_pairs()
         elif mode == "steps":
-            raise self._steps_pairs()
+            return self._steps_pairs()
+        elif mode == "value":
+            return self._value_pairs()
         else:
             raise ValueError(f"{mode=} not supported")
 
@@ -81,13 +85,16 @@ class FlatToStartStepWrapper(gym.ActionWrapper):
 
     def _steps_pairs(self):
         steps = [
-            min(0, int(round(self.N * 0.02))),
-            max(1, int(round(self.N * 0.05))),
-            int(round(self.N * 0.1)),
-            int(round(self.N * 0.25)),
+            round(self.N * 0.05),
+            round(self.N * 0.1),
+            round(self.N * 0.2),
+            round(self.N * 0.4),
         ]
         pairs = [[start, step] for start in range(self.N) for step in steps]
         return np.array(pairs)
+
+    def _value_pairs(self):
+        return np.array([[start, 1] for start in range(self.N)])
 
     def __str__(self):
         return f"<{self.__class__.__name__} {self.env.__class__.__name__}>"
