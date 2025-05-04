@@ -252,12 +252,12 @@ class DataManager:
         labels = self.y_train_model if train else self.y_test_model
         label = labels[(data == sample).all(dim=2).squeeze()]
         return label
-    
+
     def get_test_samples(self, label=0, n_samples=100, random_seed=42, k=1):
         """
         Returns a fixed set of random samples from the test dataset belonging to a specific class,
         along with their corresponding Nearest Unlike Neighbors (NUNs).
-        
+
         :param `label`: The class label for which to get samples, default is 0
         :param `n_samples`: Number of samples to return (default: 100)
         :param `random_seed`: Random seed to ensure reproducibility (default: 42)
@@ -266,20 +266,22 @@ class DataManager:
         :raises `ValueError`: If no samples with the specified label are found
         """
         class_indices = np.where(self.y_test_true == label)[0]
-        
+
         if len(class_indices) == 0:
             raise ValueError(f"No samples with label {label} found in the test dataset")
-        
+
         if n_samples >= len(class_indices):
             selected_indices = class_indices
         else:
             np.random.seed(random_seed)
-            
-            selected_indices = np.random.choice(class_indices, size=n_samples, replace=False)
-        
+
+            selected_indices = np.random.choice(
+                class_indices, size=n_samples, replace=False
+            )
+
         X_samples = self.X_test[selected_indices]
         y_samples = self.y_test_true[selected_indices]
-        
+
         nuns = []
         for idx in selected_indices:
             try:
@@ -287,7 +289,7 @@ class DataManager:
                 nuns.append(nun)
             except ValueError:
                 nuns.append(None)
-        
+
         return X_samples, y_samples, nuns
 
     def get_shape(self):
@@ -323,11 +325,9 @@ class DataManager:
         return self.X_train.shape[2]
 
     def __str__(self):
-        return f"<DataManager {self.name}>"
+        return f"<{self.__class__.__name__} {self.name}>"
 
     def __repr__(self):
-        return (
-            f"<DataManager(dataset='{self.name}', model='{type(self.model).__name__}')>"
-        )
+        return f"<{self.__class__.__name__}(dataset='{self.name}', model='{self.model.__class__.__name__}')>"
 
     # TODO: Make a method that returns a sample and its NUNs

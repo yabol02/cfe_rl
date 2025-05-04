@@ -123,15 +123,16 @@ class MyEnv(gym.Env):
 
     def compute_losses(self, new_signal) -> float:
         total_reward = 0
+        label = self.data.get_predicted_label(self.x2)
         adv, pred = losses.adversarial_loss(
-            new_signal, self.data.get_predicted_label(self.x2), self.model
+            new_signal, label, self.model
         )
         spa = losses.sparsity_loss(self.mask)
         sub = losses.contiguity_loss(self.mask)
         total_reward += adv * self.weights["adversarial"]
         total_reward += spa * self.weights["sparsity"]
         total_reward += sub * self.weights["contiguity"]
-        total_reward -= 10 if pred != self.data.get_predicted_label(self.x2) else 0
+        total_reward -= 10 if pred != label else 0
         return total_reward
 
     def reward(self, new_signal) -> float:
@@ -224,11 +225,11 @@ class MyEnv(gym.Env):
         self.steps = 0
         self.x1 = self.data.get_sample(test=not train) if sample is None else sample
         self.x2 = self.data.get_nun(self.x1, train=train) if nun is None else nun
+        self.mask = np.ones((self.data.get_dim(), self.data.get_len()), dtype=np.bool_)
         self.last_reward = self.compute_losses(self.x2)
         self.best_reward = self.last_reward.copy()
         self.best_reward_step = 0
         self.best_reward_mask = self.mask.copy()
-        self.mask = np.ones((self.data.get_dim(), self.data.get_len()), dtype=np.bool_)
         self.actions_buffer = deque(maxlen=16)
         observation = {"original": self.x1, "nun": self.x2, "mask": self.mask}
         info = self._get_info()
@@ -263,6 +264,12 @@ class MyEnv(gym.Env):
         makedirs("./results", exist_ok=True)
         with open(f"./results/{self.name}.json", "w") as f:
             dump(self.experiment, f, cls=ArrayTensorEncoder, indent=2)
+
+    def __str__(self):
+        return f"<{self.__class__.__name__} {self.data.name}>"
+    
+    def __repr__(self):
+        return f"{self.__class__.__name__}(data={self.data.name}, model={self.model.__class__.__name__}, weights={self.weights})"
 
 
 class DiscreteEnv(MyEnv):

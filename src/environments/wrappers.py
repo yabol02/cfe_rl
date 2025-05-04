@@ -6,6 +6,7 @@ class FlatToStartStepWrapper(gym.ActionWrapper):
     def __init__(self, environment, N, mode="default"):
         super().__init__(environment)
         self.N = N
+        self.mode = mode
         self.action_space = gym.spaces.Discrete(self._num_actions(mode))
         self.pairs = self._gen_pairs(mode)
 
@@ -13,7 +14,16 @@ class FlatToStartStepWrapper(gym.ActionWrapper):
         start, step = self.pairs[int(flat_action)]
         return start, step
 
-    def reset(self, sample=None, nun=None, train=True, seed=None, save_res=False, new_name=None, options=None):
+    def reset(
+        self,
+        sample=None,
+        nun=None,
+        train=True,
+        seed=None,
+        save_res=False,
+        new_name=None,
+        options=None,
+    ):
         return self.env.reset(
             sample=sample,
             nun=nun,
@@ -57,6 +67,12 @@ class FlatToStartStepWrapper(gym.ActionWrapper):
         mask = i_vals + j_vals < self.N
         return np.stack((i_vals[mask], j_vals[mask]), axis=-1)
 
+    def __str__(self):
+        return f"<{self.__class__.__name__} {self.env.__class__.__name__}>"
+
+    def __repr__(self):
+        return f"<{self.__class__.__name__}(mode={self.mode}, actions={len(self.pairs)}) <{repr(self.env)}>>"
+
 
 class FlatToStartEndWrapper(gym.ActionWrapper):
     def __init__(self, environment, N):
@@ -69,7 +85,16 @@ class FlatToStartEndWrapper(gym.ActionWrapper):
         start, end = self.pairs(flat_action)
         return start, end
 
-    def reset(self, sample=None, nun=None, train=True, seed=None, save_res=False, new_name=None, options=None):
+    def reset(
+        self,
+        sample=None,
+        nun=None,
+        train=True,
+        seed=None,
+        save_res=False,
+        new_name=None,
+        options=None,
+    ):
         return self.env.reset(
             sample=sample,
             nun=nun,
@@ -83,3 +108,9 @@ class FlatToStartEndWrapper(gym.ActionWrapper):
     def _generate_pairs(self):
         start_vals, end_vals = np.triu_indices(self.N)
         return np.stack((start_vals, end_vals), axis=1)
+    
+    def __str__(self):
+        return f"<{self.__class__.__name__} {self.env.__class__.__name__}>"
+
+    def __repr__(self):
+        return f"<{self.__class__.__name__}(mode={self.mode}, actions={len(self.pairs)}) <{repr(self.env)}>>"
