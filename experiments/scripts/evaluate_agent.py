@@ -31,7 +31,7 @@ exp = "ecg200"
 model = load_model(exp, "fcn")
 data = DataManager(f"UCR/{exp}", model, "standard")
 env = DiscreteEnv(data, model)
-discrete_env = FlatToStartStepWrapper(env, N=data.get_len(), mode="triangular")
+env = FlatToStartStepWrapper(env, N=data.get_len(), mode="triangular")
 
 
 path_model = f"./results/dqn_prueba_{exp}_2.zip"
@@ -40,7 +40,7 @@ agent = DQN.load(path_model)
 n_episodes = 10
 fps = 10
 for n in range(n_episodes):
-    obs, info = discrete_env.reset(train=False)
+    obs, info = env.reset(train=False)
     orig = obs["original"]
     nun = obs["nun"]
     mask = obs["mask"]
@@ -59,22 +59,22 @@ for n in range(n_episodes):
     while not done and not end:
         action, _ = agent.predict(obs, deterministic=True)
         action = int(action)
-        obs, reward, done, end, info = discrete_env.step(action)
+        obs, reward, done, end, info = env.step(action)
         total_reward += reward
         print(
-            discrete_env.env.steps,
-            action // discrete_env.N,
-            action % discrete_env.N,
+            env.get_n_step(),
+            action // env.N,
+            action % env.N,
             reward,
         )
-        new = calculate_cfe(orig, nun, discrete_env.env.mask)
+        new = calculate_cfe(orig, nun, env.get_actual_mask())
         lNew.set_ydata(new[0])
         fig.canvas.draw()
         plt.pause(1 / fps)
 
     print(f"Episode {n+1}) Total reward = {total_reward}")
     print(f"CFE proba = {predict_proba(model, new)[0]}")
-    print(f"L0 = {l0_norm(discrete_env.env.mask)}")
-    print(f"Nº Subsequences = {num_subsequences(discrete_env.env.mask)}")
+    print(f"L0 = {l0_norm(env.get_actual_mask())}")
+    print(f"Nº Subsequences = {num_subsequences(env.get_actual_mask())}")
     input("Continue...\n")
-    obs, info = discrete_env.reset(train=True)
+    obs, info = env.reset(train=True)

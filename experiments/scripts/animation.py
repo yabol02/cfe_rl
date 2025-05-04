@@ -42,7 +42,7 @@ while not done and not end:
     action, _ = agent.predict(obs, deterministic=True)
     obs, reward, done, end, info = discrete_env.step(int(action))
     total_reward += reward
-    steps.append({"step": discrete_env.env.steps, "mask": discrete_env.env.mask.copy()})
+    steps.append({"step": discrete_env.get_n_step(), "mask": discrete_env.get_actual_mask().copy()})
 
 
 def init():
@@ -68,8 +68,8 @@ ani = animation.FuncAnimation(
 plt.show()
 
 # --- Final info ---
-final_cfe = calculate_cfe(orig, nun, discrete_env.env.mask)
+final_cfe = calculate_cfe(orig, nun, discrete_env.get_actual_mask())
 print(f"Total reward = {total_reward}")
 print(f"CFE proba = {predict_proba(model, final_cfe)[0]}")
-print(f"% Changes = {l0_norm(discrete_env.env.mask)/discrete_env.env.mask.size}")
-print(f"Nº Subsequences = {num_subsequences(discrete_env.env.mask)}")
+print(f"% Changes = {l0_norm(discrete_env.get_actual_mask())/discrete_env.get_actual_mask().size}")
+print(f"Nº Subsequences = {num_subsequences(discrete_env.get_actual_mask())}")

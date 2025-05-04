@@ -34,6 +34,21 @@ class FlatToStartStepWrapper(gym.ActionWrapper):
             options=options,
         )
 
+    def step(self, action):
+        return self.env.step(action)
+
+    def get_cfe(self):
+        return self.env.get_cfe()
+
+    def get_n_step(self):
+        return self.env.steps
+
+    def get_actual_mask(self):
+        return self.env.mask.copy()
+
+    def save_results(self, name):
+        return self.env.save_results(name)
+
     def _num_actions(self, mode):
         if mode == "default":
             return self.N**2
@@ -108,7 +123,7 @@ class FlatToStartEndWrapper(gym.ActionWrapper):
     def _generate_pairs(self):
         start_vals, end_vals = np.triu_indices(self.N)
         return np.stack((start_vals, end_vals), axis=1)
-    
+
     def __str__(self):
         return f"<{self.__class__.__name__} {self.env.__class__.__name__}>"
 

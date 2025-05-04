@@ -309,11 +309,7 @@ def evaluate_agent(data: DataManager, agent, environment):
             action, _ = agent.predict(observation, deterministic=True)
             # action = int(action) if isinstance(environment, ActionWrapper) else action
             observation, reward, done, end, info = environment.step(action)
-        cfe_info = (
-            environment.env.get_cfe()
-            if isinstance(environment, ActionWrapper)
-            else environment.get_cfe()
-        )
+        cfe_info = environment.get_cfe()
         mask = cfe_info["mask"]
         reward = cfe_info["reward"]
         step = cfe_info["step"]

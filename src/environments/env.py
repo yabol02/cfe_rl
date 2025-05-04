@@ -258,9 +258,9 @@ class MyEnv(gym.Env):
             "mask": self.best_reward_mask,
         }
 
-    def save_results(self):
+    def save_results(self, def_name=f"exp_{datetime.now().strftime("%Y-%m-%d_%H:%M")}"):
         if self.name is None:
-            self.name = "default_name"
+            self.name = def_name
         makedirs("./results", exist_ok=True)
         with open(f"./results/{self.name}.json", "w") as f:
             dump(self.experiment, f, cls=ArrayTensorEncoder, indent=2)
