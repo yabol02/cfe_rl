@@ -85,7 +85,7 @@ class FlatToStartStepWrapper(gym.ActionWrapper):
 
     def _steps_pairs(self):
         steps = [
-            round(self.N * 0.05),
+            1,
             round(self.N * 0.1),
             round(self.N * 0.2),
             round(self.N * 0.4),
