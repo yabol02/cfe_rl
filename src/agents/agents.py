@@ -275,8 +275,9 @@ def save_agent(hash_experiment: str, data: DataManager, agent, environment):
     df.loc[df["hash"] == hash_experiment, "total_time"] = (
         f"{time_elapsed//60}' {time_elapsed%60}\""
     )
-
-    results = evaluate_agent(data, agent, environment)
+    samples, labels, nuns = data.get_test_samples()
+    cfes = obtain_cfes(samples, labels, nuns, environment, agent)
+    results = evaluate_cfes(cfes, data.model)
     results.to_excel(f"./results/{hash_experiment}/cfes_info.xlsx", index=False)
     for col in [
         "reward",
@@ -298,23 +299,39 @@ def save_agent(hash_experiment: str, data: DataManager, agent, environment):
     df.to_excel("./results/experiments.xlsx", index=False)
 
 
-def evaluate_agent(data: DataManager, agent, environment):
-    samples, labels, nuns = data.get_test_samples()
-
-    results = []
+def obtain_cfes(samples, labels, nuns, env, agent):
+    cfes = list()
     for sample, label, nun in zip(samples, labels, nuns):
-        observation, _ = environment.reset(sample, nun)
+        observation, _ = env.reset(sample, nun)
         done, end = False, False
         while not done and not end:
             action, _ = agent.predict(observation, deterministic=True)
-            # action = int(action) if isinstance(environment, ActionWrapper) else action
-            observation, reward, done, end, info = environment.step(action)
-        cfe_info = environment.get_cfe()
-        mask = cfe_info["mask"]
-        reward = cfe_info["reward"]
-        step = cfe_info["step"]
-        cfe = np.where(mask, nun, sample)
-        proba, pred_class = predict_proba(data.model, cfe)
+            observation, reward, done, end, info = env.step(action)
+        cfe_info = env.get_cfe()
+        cfe = np.where(cfe_info["mask"], nun, sample)
+        cfes.append(
+            {
+                "sample": sample,
+                "nun": nun,
+                "cfe": cfe,
+                "label": label,
+                "mask": cfe_info["mask"],
+                "step": cfe_info["step"],
+                "reward": cfe_info["reward"],
+            }
+        )
+    return cfes
+
+
+def evaluate_cfes(cfes, model):
+    results = list()
+    for data in cfes:
+        sample = data["sample"]
+        nun = data["nun"]
+        cfe = data["cfe"]
+        label = data["label"]
+        mask = data["mask"]
+        proba, pred_class = predict_proba(model, cfe)
         proba = float(proba[0][1 - label])
         subsequences = num_subsequences(mask)
         changes = l0_norm(mask)
@@ -329,8 +346,8 @@ def evaluate_agent(data: DataManager, agent, environment):
                 "sample": sample,
                 "nun": nun,
                 "mask": mask,
-                "reward": reward,
-                "step": step,
+                "step": data.get("step"),
+                "reward": data.get("reward"),
                 "proba": proba,
                 "subsequences": subsequences,
                 "num_changes": changes,
