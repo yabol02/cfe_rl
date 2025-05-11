@@ -97,7 +97,7 @@ class FlatToStartStepWrapper(gym.ActionWrapper):
         return np.array([[start, 1] for start in range(self.N)])
 
     def __str__(self):
-        return f"<{self.__class__.__name__} {self.env.__class__.__name__}>"
+        return f"<{self.__class__.__name__} ({self.mode}) {self.env.__class__.__name__}>"
 
     def __repr__(self):
         return f"<{self.__class__.__name__}(mode={self.mode}, actions={len(self.pairs)}) <{repr(self.env)}>>"
