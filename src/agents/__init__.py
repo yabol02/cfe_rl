@@ -6,3 +6,4 @@ from .agents import (
     evaluate_cfes,
 )
 from .components import CustomFeatureExtractor, CustomACPolicy, CustomQPolicy
+from .callbacks import LossesCallback

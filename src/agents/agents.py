@@ -84,16 +84,16 @@ def record_experiment_metadata(
         "weights_losses": str(weights_losses),
         "mode": mapping_mode,
         "timesteps": 0,
-        "total_time": "",
-        "reward": "",
-        "step": "",
-        "proba": "",
-        "subsequences": "",
-        "num_changes": "",
-        "perc_changes": "",
-        "L1": "",
-        "L2": "",
-        "valid": "",
+        "total_time": np.nan,
+        "reward": np.nan,
+        "step": np.nan,
+        "proba": np.nan,
+        "subsequences": np.nan,
+        "num_changes": np.nan,
+        "perc_changes": np.nan,
+        "L1": np.nan,
+        "L2": np.nan,
+        "valid": np.nan,
     }
 
     if os.path.exists(excel_path):
@@ -168,7 +168,7 @@ def create_dqn_agent(
         max_grad_norm=params.get("max_grad_norm", 10),
         stats_window_size=params.get("stats_window_size", 100),
         tensorboard_log=f"./results/{hash_exp}",
-        verbose=2,
+        verbose=0,
     )
     return agent
 
