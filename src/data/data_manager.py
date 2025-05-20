@@ -1,6 +1,7 @@
 import os
 import typing as tp
 import numpy as np
+from tslearn.neighbors import KNeighborsTimeSeries
 from ..utils import label_encoder, predict_proba
 
 try:
@@ -31,8 +32,12 @@ class DataManager:
         self.model = model
         self.y_train_model = predict_proba(self.model, self.X_train)[1]
         self.y_test_model = predict_proba(self.model, self.X_test)[1]
-        self.nuns_train = self.compute_nuns(train=True, preds=True)
-        self.nuns_test = self.compute_nuns(train=False, preds=True)
+        self.nuns_train, self.nuns_train_distances = self.compute_nuns(
+            train=True, preds=True
+        )
+        self.nuns_test, self.nuns_test_distances = self.compute_nuns(
+            train=False, preds=True
+        )
 
     def load_dataset(
         self, dataset: str, scaling: str = "none", backend: str = "torch"
@@ -128,33 +133,43 @@ class DataManager:
     def compute_nuns(self, train=True, preds=False):
         """
         Computes the Nearest Unlike Neighbors (NUNs) for each sample in the dataset.
-        For each sample, finds the closest samples with a different label and returns the 10 closest in an ordered list based on their distance.
-        The NUNs of the training data are calculated on the known data, which implies that they are computed over the training data.
+        For each sample, finds the 10 closest samples with a different label, using a k-NN classifier based on Euclidean distance.
 
+        The NUNs of the training data are computed within the training set itself.
+        The NUNs of the test data are also computed using the training set as the reference base, ensuring consistency across evaluations.
 
-        :param `train`: If True, computes NUNs for training data, otherwise for test data, default is True
-        :param `preds`: If True, uses model predictions as labels, otherwise uses true labels, default is False
-        :return `nuns`: A dictionary mapping each sample index to its ordered list of NUNs
+        :param `train`: If True, computes NUNs for training data; otherwise, for test data. Default is True
+        :param `preds`: If True, uses model predictions as labels; otherwise, uses true labels. Default is False
+        :return `nuns`: A dictionary mapping each sample index to its ordered list of NUNs (as arrays)
+        :return `nuns_distances`: The distances to their 10 NUNs
         """
-        data = self.X_train if train else self.X_test
+        import warnings
 
-        labels = self.y_train_model if preds else self.y_train_true
+        warnings.filterwarnings(
+            "ignore", category=FutureWarning
+        )  # The line with the `.fit` causes lots of WARNING messages
+
+        data = self.X_train if train else self.X_test
+        labels = labels = self.y_train_model if preds else self.y_train_true
 
         nuns = dict()
+        nuns_distances = dict()
         for i, sample in enumerate(data):
-            sample_label = (
-                self.get_true_label(sample, True if train else False)
-                if not preds
-                else self.get_predicted_label(sample, True if train else False)
+            knn = KNeighborsTimeSeries(n_neighbors=1, metric="euclidean")
+            label = (
+                self.get_predicted_label(sample, train)
+                if preds
+                else self.get_true_label(sample, train)
             )
-            unlike_indices = np.where(labels != sample_label)[0]
-            distances = np.linalg.norm(
-                self.X_train[unlike_indices] - sample, ord=2, axis=2
-            )
-            sorted_idxs = unlike_indices[np.argsort(distances, axis=0)[::-1]].flatten()
-            nuns[i] = self.X_train[sorted_idxs][:10]
+            unlike_labels = [i for i, l in enumerate(labels) if l != label]
+            unlike_samples = self.X_train[unlike_labels]
+            knn = knn.fit(X=unlike_samples, y=unlike_labels)
+            distances, idxs = knn.kneighbors(sample, n_neighbors=10)
+            idxs = [unlike_labels[x] for x in idxs.squeeze()]
+            nuns[i] = self.X_train[idxs]
+            nuns_distances[i] = distances
 
-        return nuns
+        return nuns, nuns_distances
 
     def get_sample(self, label=0, index=None, test=False, failed=False):
         """

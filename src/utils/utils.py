@@ -82,20 +82,20 @@ def l1_norm(x: tp.Union[np.ndarray, list], cfe: tp.Union[np.ndarray, list]) -> f
     return np.linalg.norm(x - cfe, ord=1)
 
 
-def l2_norm(x: tp.Union[np.ndarray, list], cfe: tp.Union[np.ndarray, list]) -> float:
+def l2_norm(x1: tp.Union[np.ndarray, list], x2: tp.Union[np.ndarray, list]) -> float:
     """
     Calculates the L2 norm between two arrays.
 
-    :param `x`: First array
-    :param `cfe`: Second array
+    :param `x1`: First array
+    :param `x2`: Second array
     :return: L2 norm between the two arrays
     """
-    x = np.asarray(x).flatten()
-    cfe = np.asarray(cfe).flatten()
-    return np.linalg.norm(x - cfe, ord=2)
+    x1 = np.asarray(x1).flatten()
+    x2 = np.asarray(x2).flatten()
+    return np.linalg.norm(x1 - x2, ord=2)
 
 
-def plot_signal(X, X2, mask, ax, dataset=None):
+def plot_signal(X, X2, mask, ax, title=None):
     """
     Plots three versions of a time series signal:
     - The original signal (in blue)
@@ -158,7 +158,7 @@ def plot_signal(X, X2, mask, ax, dataset=None):
 
     ax.legend(loc="upper left", fontsize="x-small")
     ax.set_title(
-        f"CFE{f' - {dataset}' if dataset else ''}", fontsize=14, fontweight="bold"
+        f"CFE{f' - {title}' if title else ''}", fontsize=14, fontweight="bold"
     )
 
 
