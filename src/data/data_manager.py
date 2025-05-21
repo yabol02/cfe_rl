@@ -202,7 +202,7 @@ class DataManager:
         sample = data[index]
         return sample
 
-    def get_nun(self, sample=None, sample_index=None, train=True, k=1):
+    def get_nun(self, sample=None, sample_index=None, train=True, k=1, weighted_random=False):
         """
         Finds the Nearest Unlike Neighbor(s) (NUN) for a given sample.
 
@@ -210,7 +210,8 @@ class DataManager:
         :param `sample_index`: The index of the sample in the dataset. If None, sample must be provided, default is None
         :param `train`: Whether to search in the training set (True) or test set (False), default is True
         :param `k`: Number of nearest unlike neighbors to return, default is 1
-        :return `nun`: The k nearest unlike neighbors of the sample (converted to a NumPy Array)
+        :param `weighted_random`: If True, selects a neighbor based on weighted random selection using inverse distances, default is False
+        :return: The k nearest unlike neighbors of the sample (converted to a NumPy Array)
         :raises `ValueError`: If neither sample nor sample_index is provided or if the sample index is not found
         """
         if sample is None and sample_index is None:
@@ -231,6 +232,12 @@ class DataManager:
                 f"Sample index {sample_index} not found in the {'training' if train else 'test'} set"
             )
 
+        if weighted_random:
+            distances = self.nuns_train_distances if train else self.nuns_test_distances
+            distances = 1/distances[sample_index].flatten()[:4]
+            probs = distances / distances.sum()
+            k = np.random.choice(4, p=probs)
+            
         return nuns_dict[sample_index][k]
 
     def get_true_label(self, sample, train=True):
