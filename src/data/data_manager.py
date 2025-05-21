@@ -171,19 +171,19 @@ class DataManager:
 
         return nuns, nuns_distances
 
-    def get_sample(self, label=0, index=None, test=False, failed=False):
+    def get_sample(self, label=0, index=None, train=False, failed=False):
         """
         Gets a sample of the data belonging to the class specified by label.
 
         :param `label`: The label of the class from which a sample is to be obtained, default is 1
         :param `index`: The specific index of the sample to retrieve. If None, a random sample is returned, default is None
-        :param `test`: If True, gets the sample from the test data, otherwise from training data, default is False
+        :param `train`: If True, gets the sample from the train data, otherwise from test data, default is False
         :param `failed`: Parameter is not used in the current implementation
         :return `sample`: A sample of the specified class
         :raises `ValueError`: If there is no data for the specified class or if the index is out of bounds
         """
-        data = self.X_test if test else self.X_train
-        labels = self.y_test_true if test else self.y_train_true
+        data = self.X_train if train else self.X_test
+        labels = self.y_train_true if train else self.y_test_true
         if label not in labels:
             raise ValueError(f"{label} not in labels: {list(set(labels))}")
 
@@ -237,7 +237,7 @@ class DataManager:
             distances = 1/distances[sample_index].flatten()[:4]
             probs = distances / distances.sum()
             k = np.random.choice(4, p=probs)
-            
+
         return nuns_dict[sample_index][k]
 
     def get_true_label(self, sample, train=True):

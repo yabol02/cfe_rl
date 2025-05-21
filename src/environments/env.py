@@ -223,7 +223,7 @@ class MyEnv(gym.Env):
     ):
         super().reset(seed=seed)
         self.steps = 0
-        self.x1 = self.data.get_sample(test=not train) if sample is None else sample
+        self.x1 = self.data.get_sample(train=train) if sample is None else sample
         self.x2 = self.data.get_nun(self.x1, train=train) if nun is None else nun
         self.mask = np.ones((self.data.get_dim(), self.data.get_len()), dtype=np.bool_)
         self.last_reward = self.compute_losses(self.x2)
