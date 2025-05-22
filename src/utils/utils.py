@@ -8,6 +8,18 @@ import numpy as np
 from torch.nn import functional
 
 
+def compute_cfe(mask: np.ndarray, x1: np.ndarray, x2: np.ndarray):
+    """
+    Calculates the Counterfactual Explanation (CFE) of a signal based on the mask and another signal.
+
+    :param `mask`: Boolean array used to select between elements of x1 and x2
+    :param `x1`: Array of values to select when the mask is False
+    :param `x2`: Array of values to select when the mask is True
+    :return: Array with elements selected from x1 or x2 based on the mask
+    """
+    return np.where(mask, x2, x1)
+
+
 def predict_proba(model, data, device="cpu"):
     """
     Predicts the class probabilities and the predicted class for the given data using the model.
@@ -51,12 +63,38 @@ def predict_proba(model, data, device="cpu"):
 
 def num_subsequences(mask: np.ndarray) -> int:
     """
-    Calculates the number of subsequences in a mask.
+    Calculates the number of subsequences in a mask (how many times the mask changes from 0 to 1).
 
     :param `mask`: Numpy array representing the mask
     :return: Number of subsequences
     """
     return np.count_nonzero(np.diff(mask, prepend=0, axis=1) == 1, axis=(0, 1))
+
+
+def find_diferences(mask, x1, x2):
+    """
+    Find the positions where the mask changes from 0 to 1 or from 1 to 0 and calculate the distances between the CFE and the other signal.
+
+    :param `mask`: Boolean array used to select between elements of x1 and x2.
+    :param `x1`: Array of values to select when the mask is False.
+    :param `x2`: Array of values to select when the mask is True.
+    :return `diferences`: List of differences between the CFE and the corresponding values in x1 or x2 at positions where changes occur in the mask.
+    """
+    x1 = np.asarray(x1)
+    x2 = np.asarray(x2)
+    cfe = compute_cfe(mask, x1, x2)
+
+    changes = np.diff(mask, prepend=mask[:, [0]], axis=1)
+    ids_changes = np.where(changes != 0)
+    ids_changes = [tuple(ids) for ids in zip(*ids_changes)]
+
+    diferences = list()
+    for pos in ids_changes:
+        value = x1[pos] if mask[pos] == 1 else x2[pos]
+        dif = np.linalg.norm(cfe[pos] - value)
+        diferences.append(dif)
+
+    return diferences
 
 
 def l0_norm(mask: np.ndarray) -> int:
@@ -157,9 +195,7 @@ def plot_signal(X, X2, mask, ax, title=None):
         )
 
     ax.legend(loc="upper left", fontsize="x-small")
-    ax.set_title(
-        f"CFE{f' - {title}' if title else ''}", fontsize=14, fontweight="bold"
-    )
+    ax.set_title(f"CFE{f' - {title}' if title else ''}", fontsize=14, fontweight="bold")
 
 
 def extract_submasks(mask):
@@ -244,16 +280,18 @@ def load_json_params(file_path: str) -> dict:
     # Remove lines with comments
     cleaned = []
     for line in content:
-        if '//' in line:
-            line = re.sub(r'(?<!http:)//.*', '', line)
+        if "//" in line:
+            line = re.sub(r"(?<!http:)//.*", "", line)
         if line.strip():
             cleaned.append(line)
 
-    json_str = ''.join(cleaned)
+    json_str = "".join(cleaned)
     return json.loads(json_str)
 
 
-def generate_param_combinations(config: tp.Dict[str, tp.Any]) -> tp.List[tp.Dict[str, tp.Any]]:
+def generate_param_combinations(
+    config: tp.Dict[str, tp.Any],
+) -> tp.List[tp.Dict[str, tp.Any]]:
     """
     Generates all combinations of parameter configurations to run experiments.
 

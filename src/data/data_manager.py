@@ -171,7 +171,7 @@ class DataManager:
 
         return nuns, nuns_distances
 
-    def get_sample(self, label=0, index=None, train=False, failed=False):
+    def get_sample(self, label=0, index=None, train=True, failed=False):
         """
         Gets a sample of the data belonging to the class specified by label.
 
@@ -202,7 +202,9 @@ class DataManager:
         sample = data[index]
         return sample
 
-    def get_nun(self, sample=None, sample_index=None, train=True, k=1, weighted_random=False):
+    def get_nun(
+        self, sample=None, sample_index=None, train=True, k=1, weighted_random=False
+    ):
         """
         Finds the Nearest Unlike Neighbor(s) (NUN) for a given sample.
 
@@ -234,7 +236,7 @@ class DataManager:
 
         if weighted_random:
             distances = self.nuns_train_distances if train else self.nuns_test_distances
-            distances = 1/distances[sample_index].flatten()[:4]
+            distances = 1 / distances[sample_index].flatten()[:4]
             probs = distances / distances.sum()
             k = np.random.choice(4, p=probs)
 

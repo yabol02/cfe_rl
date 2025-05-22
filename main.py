@@ -7,8 +7,9 @@ from src.agents import (
 from src.utils import load_json_params, generate_param_combinations
 
 DATASETS = ["chinatown", "ecg200"]
+params_file = "subspace.json"
 
-parameters = load_json_params("./params/agents/cfe_rl.json")
+parameters = load_json_params(f"./params/agents/{params_file}")
 combinations = generate_param_combinations(parameters)
 
 for dataset in DATASETS:
@@ -22,7 +23,7 @@ for dataset in DATASETS:
 
         losses_callback = LossesCallback(
             total_timesteps=timesteps,
-            tensorboard_path=f"./results/{hash_experiment}",
+            tensorboard_path=f"./results/subspcace/{hash_experiment}",
             model=data.model,
             samples=test_data,
             labels=test_labels,

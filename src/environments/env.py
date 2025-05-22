@@ -63,16 +63,21 @@ class MyEnv(gym.Env):
         """
         Normalizes a list of weights so that they sum to 1. Weight values equal to 0 are allowed and will be preserved in the normalization.
 
-        :param `weights`: List of 3 numerical weights, one for each loss component
-        :return `normalized`: Normalized weights whose sum is equal to 1 as a dictionary with where the keys are the different losses (“adversarial”, “sparsity” and “contiguity”)
-        :raise `ValueError`: If the list does not contain exactly 3 elements
+        :param `weights`: List of 4 numerical weights, one for each loss component
+        :return `normalized`: Normalized weights whose sum is equal to 1 as a dictionary with where the keys are the different losses ("adversarial", "sparsity", "contiguity" and "plausability")
+        :raise `ValueError`: If the list does not contain exactly 4 elements
         :raise `ValueError`: If any weight is less than 0
         :raise `ValueError`: If the sum of all weights is 0
         """
         if not weights:
-            return {"adversarial": 1 / 3, "sparsity": 1 / 3, "contiguity": 1 / 3}
+            return {
+                "adversarial": 1 / 4,
+                "sparsity": 1 / 4,
+                "contiguity": 1 / 4,
+                "plausability": 1 / 4,
+            }
 
-        if len(weights) != 3:
+        if len(weights) != 4:
             raise ValueError("The list must be of size 3, one for each loss.")
         if any(num for num in weights) < 0:
             raise ValueError("All weights must be greater or equal to 0.")
@@ -81,7 +86,12 @@ class MyEnv(gym.Env):
 
         normalized_weights = [num / sum(weights) for num in weights]
 
-        return dict(zip(["adversarial", "sparsity", "contiguity"], normalized_weights))
+        return dict(
+            zip(
+                ["adversarial", "sparsity", "contiguity", "plausability"],
+                normalized_weights,
+            )
+        )
 
     def step(self, action):
         """
@@ -124,14 +134,14 @@ class MyEnv(gym.Env):
     def compute_losses(self, new_signal) -> float:
         total_reward = 0
         label = self.data.get_predicted_label(self.x2)
-        adv, pred = losses.adversarial_loss(
-            new_signal, label, self.model
-        )
+        adv, pred = losses.adversarial_loss(new_signal, label, self.model)
         spa = losses.sparsity_loss(self.mask)
         sub = losses.contiguity_loss(self.mask)
+        pla = losses.plausability_loss(self.mask, self.x1, self.x2)
         total_reward += adv * self.weights["adversarial"]
         total_reward += spa * self.weights["sparsity"]
         total_reward += sub * self.weights["contiguity"]
+        total_reward += pla * self.weights["plausability"]
         total_reward -= 10 if pred != label else 0
         return total_reward
 
@@ -224,7 +234,11 @@ class MyEnv(gym.Env):
         super().reset(seed=seed)
         self.steps = 0
         self.x1 = self.data.get_sample(train=train) if sample is None else sample
-        self.x2 = self.data.get_nun(self.x1, train=train) if nun is None else nun
+        self.x2 = (
+            self.data.get_nun(self.x1, train=train, weighted_random=True)
+            if nun is None
+            else nun
+        )
         self.mask = np.ones((self.data.get_dim(), self.data.get_len()), dtype=np.bool_)
         self.last_reward = self.compute_losses(self.x2)
         self.best_reward = self.last_reward.copy()
@@ -267,7 +281,7 @@ class MyEnv(gym.Env):
 
     def __str__(self):
         return f"<{self.__class__.__name__} {self.data.name}>"
-    
+
     def __repr__(self):
         return f"{self.__class__.__name__}(data={self.data.name}, model={self.model.__class__.__name__}, weights={self.weights})"
 

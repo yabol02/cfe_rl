@@ -75,26 +75,38 @@ class LossesCallback(BaseCallback):
     def _on_step(self) -> bool:
         if self.num_timesteps - self.last_eval >= self.eval_interval:
             self.last_eval = self.num_timesteps
-            adv_losses, con_losses, spa_losses = list(), list(), list()
-            cfes = obtain_cfes(self.samples, self.labels, self.nuns, self.env, self.model)
+            adv_losses, con_losses, spa_losses, pla_losses = (
+                list(),
+                list(),
+                list(),
+                list(),
+            )
+            cfes = obtain_cfes(
+                self.samples, self.labels, self.nuns, self.env, self.model
+            )
             for data in cfes:
                 cfe = data["cfe"]
                 mask = data["mask"]
+                sample = data["sample"]
+                nun = data["nun"]
                 adv_losses.append(
                     losses.adversarial_loss(cfe, self.label_nun, self.predictor)[0]
                 )
                 con_losses.append(losses.contiguity_loss(mask))
                 spa_losses.append(losses.sparsity_loss(mask))
+                pla_losses.append(losses.plausability_loss(mask, sample, nun))
             adv_loss = sum(adv_losses) / self.num_data
             con_loss = sum(con_losses) / self.num_data
             spa_loss = sum(spa_losses) / self.num_data
+            pla_loss = sum(pla_losses) / self.num_data
             self.logger.record(f"custom/adversarial", adv_loss)
             self.logger.record(f"custom/contiguity", con_loss)
             self.logger.record(f"custom/sparsity", spa_loss)
+            self.logger.record(f"custom/plausability", pla_loss)
 
             if self.verbose > 0:
                 print(
-                    f"Evaluation at timestep {self.num_timesteps} | Adv: {adv_loss:.4f} | Con: {con_loss:.4f} | Spa: {spa_loss:.4f}"
+                    f"Evaluation at timestep {self.num_timesteps} | Adv: {adv_loss:.4f} | Con: {con_loss:.4f} | Spa: {spa_loss:.4f} | Pla: {pla_loss:.4f}"
                 )
 
         return True
