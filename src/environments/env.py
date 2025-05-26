@@ -78,7 +78,7 @@ class MyEnv(gym.Env):
             }
 
         if len(weights) != 4:
-            raise ValueError("The list must be of size 3, one for each loss.")
+            raise ValueError("The list must be of size 4, one for each loss.")
         if any(num for num in weights) < 0:
             raise ValueError("All weights must be greater or equal to 0.")
         if sum(weights) == 0:

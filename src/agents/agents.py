@@ -360,16 +360,17 @@ def evaluate_cfes(cfes, model):
     return df
 
 
-def load_saved_experiment(hash_exp: str, model_name: str = "model.zip"):
+def load_saved_experiment(
+    hash_exp: str, model_name: str = "model.zip", directory="results"
+):
     """
     Loads a saved agent and its associated environment using existing functions.
 
     :param `hash_exp`: Unique identifier for the experiment
     :param `model_name`: Name of the model file to load (default: "model.zip")
-    :param `dataset_path`: Base path to the dataset directory
     :return `agent`, `env`, `data`: Tuple with the agent, the environment and the DataManager used in the loaded experiment
     """
-    results_dir = os.path.join("results", hash_exp)
+    results_dir = os.path.join(directory, hash_exp)
 
     params_path = os.path.join(results_dir, "params.json")
     if not os.path.exists(params_path):
