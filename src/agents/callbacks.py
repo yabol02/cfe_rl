@@ -104,7 +104,7 @@ class LossesCallback(BaseCallback):
             self.logger.record(f"custom/sparsity", spa_loss)
             self.logger.record(f"custom/plausability", pla_loss)
 
-            if self.verbose > 0:
+            if self.verbose > 2:
                 print(
                     f"Evaluation at timestep {self.num_timesteps} | Adv: {adv_loss:.4f} | Con: {con_loss:.4f} | Spa: {spa_loss:.4f} | Pla: {pla_loss:.4f}"
                 )

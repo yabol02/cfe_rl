@@ -150,24 +150,31 @@ class DataManager:
         )  # The line with the `.fit` causes lots of WARNING messages
 
         data = self.X_train if train else self.X_test
-        labels = labels = self.y_train_model if preds else self.y_train_true
+        labels = labels = (
+            self.y_train_model
+            if train and preds
+            else (
+                self.y_train_model
+                if train and not preds
+                else self.y_test_true if not train and preds else self.y_test_model
+            )
+        )
 
         nuns = dict()
         nuns_distances = dict()
-        for i, sample in enumerate(data):
-            knn = KNeighborsTimeSeries(n_neighbors=1, metric="euclidean")
-            label = (
-                self.get_predicted_label(sample, train)
-                if preds
-                else self.get_true_label(sample, train)
+        for y in np.unique(labels):
+            unlike_samples_ids = np.where(labels != y)[0].tolist()
+            unlike_samples = self.X_train[unlike_samples_ids]
+            knn = KNeighborsTimeSeries(n_neighbors=1, metric="euclidean").fit(
+                unlike_samples
             )
-            unlike_labels = [i for i, l in enumerate(labels) if l != label]
-            unlike_samples = self.X_train[unlike_labels]
-            knn = knn.fit(X=unlike_samples, y=unlike_labels)
-            distances, idxs = knn.kneighbors(sample, n_neighbors=10)
-            idxs = [unlike_labels[x] for x in idxs.squeeze()]
-            nuns[i] = self.X_train[idxs]
-            nuns_distances[i] = distances
+            samples_ids = np.where(labels == y)[0].tolist()
+            samples = data[samples_ids]
+            distances, ids = knn.kneighbors(samples, n_neighbors=10)
+            ids = np.array(unlike_samples_ids)[ids]
+            for i, x in enumerate(samples_ids):
+                nuns[x] = self.X_train[ids[i]]
+                nuns_distances[x] = distances[i]
 
         return nuns, nuns_distances
 
@@ -184,13 +191,14 @@ class DataManager:
         """
         data = self.X_train if train else self.X_test
         labels = self.y_train_true if train else self.y_test_true
-        if label not in labels:
-            raise ValueError(f"{label} not in labels: {list(set(labels))}")
+        unique_labels = np.unique(labels)
+        if label not in unique_labels:
+            raise ValueError(f"{label} not in labels: {unique_labels.tolist()}")
 
         class_indices = np.where(labels == label)[0]
 
         if index is not None:
-            if index not in class_indices:
+            if labels[index] != label:
                 raise ValueError(f"Index {index} not found in class {label}")
             sample = data[index]
             return sample

@@ -167,7 +167,7 @@ def create_dqn_agent(
         max_grad_norm=params.get("max_grad_norm", 10),
         stats_window_size=params.get("stats_window_size", 100),
         tensorboard_log=f"./results/{hash_exp}",
-        verbose=0,
+        verbose=2,
     )
     return agent
 
