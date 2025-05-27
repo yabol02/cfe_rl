@@ -21,6 +21,7 @@ class DataManager:
         model: nn.Module,
         scaling: str = "none",
         backend: str = "torch",
+        device: str = "cuda",
     ):
         self.X_train, y_train, self.X_test, y_test = self.load_dataset(
             dataset, scaling, backend
@@ -29,9 +30,14 @@ class DataManager:
         self.name = dataset.split("/")[-1]
         self.scaling = scaling
         self.backend = backend
-        self.model = model
-        self.y_train_model = predict_proba(self.model, self.X_train)[1]
-        self.y_test_model = predict_proba(self.model, self.X_test)[1]
+        self.device = device
+        self.model = model.to(self.device)
+        self.y_train_model = np.asarray(
+            predict_proba(self.model, self.X_train, self.device)[1].cpu()
+        )
+        self.y_test_model = np.asarray(
+            predict_proba(self.model, self.X_test, self.device)[1].cpu()
+        )
         self.nuns_train, self.nuns_train_distances = self.compute_nuns(
             train=True, preds=True
         )
@@ -150,7 +156,7 @@ class DataManager:
         )  # The line with the `.fit` causes lots of WARNING messages
 
         data = self.X_train if train else self.X_test
-        labels = labels = (
+        labels = np.asarray(
             self.y_train_model
             if train and preds
             else (
@@ -163,7 +169,9 @@ class DataManager:
         nuns = dict()
         nuns_distances = dict()
         for y in np.unique(labels):
-            unlike_samples_ids = np.where(labels != y)[0].tolist()
+            unlike_samples_ids = np.where(
+                self.y_train_model if preds else self.y_train_true != y
+            )[0].tolist()
             unlike_samples = self.X_train[unlike_samples_ids]
             knn = KNeighborsTimeSeries(n_neighbors=1, metric="euclidean").fit(
                 unlike_samples

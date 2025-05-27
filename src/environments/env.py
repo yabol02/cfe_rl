@@ -16,10 +16,12 @@ class MyEnv(gym.Env):
         model,
         weights_losses=None,
         experiment_name=None,
+        device="cuda",
     ):
         super().__init__()
         self.data = dataset
-        self.model = model
+        self.device = device
+        self.model = model.to(self.device).eval()
         self.name = experiment_name
         self.weights = self.compute_weights(weights_losses)
         self.x1 = self.data.get_sample()
@@ -134,7 +136,7 @@ class MyEnv(gym.Env):
     def compute_losses(self, new_signal) -> float:
         total_reward = 0
         label = self.data.get_predicted_label(self.x2)
-        adv, pred = losses.adversarial_loss(new_signal, label, self.model)
+        adv, pred = losses.adversarial_loss(new_signal, label, self.model, self.device)
         spa = losses.sparsity_loss(self.mask)
         sub = losses.contiguity_loss(self.mask)
         pla = losses.plausability_loss(self.mask, self.x1, self.x2)
@@ -288,7 +290,13 @@ class MyEnv(gym.Env):
 
 class DiscreteEnv(MyEnv):
     def __init__(
-        self, dataset, model, weights_losses=None, experiment_name=None, **kwargs
+        self,
+        dataset,
+        model,
+        weights_losses=None,
+        experiment_name=None,
+        device="cuda",
+        **kwargs,
     ):
         super().__init__(dataset, model, weights_losses, experiment_name, **kwargs)
         self.action_space = gym.spaces.MultiDiscrete(

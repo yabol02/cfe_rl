@@ -2,7 +2,7 @@ import numpy as np
 from .utils import predict_proba, l0_norm, num_subsequences, find_diferences
 
 
-def adversarial_loss(sample, y_nun, model, device="cpu"):
+def adversarial_loss(sample, y_nun, model, device):
     """
     Classifier's probability for the desired class y_nun given sample'.
 

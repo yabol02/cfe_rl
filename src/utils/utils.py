@@ -20,7 +20,7 @@ def compute_cfe(mask: np.ndarray, x1: np.ndarray, x2: np.ndarray):
     return np.where(mask, x2, x1)
 
 
-def predict_proba(model, data, device="cpu"):
+def predict_proba(model, data, device):
     """
     Predicts the class probabilities and the predicted class for the given data using the model.
 
@@ -32,22 +32,17 @@ def predict_proba(model, data, device="cpu"):
     :return `probabilities`: A tensor containing class probabilities for the input data
     :return `predicted_class`: The index of the class with the highest probability
     """
-    model.eval()
-
     if isinstance(data, np.ndarray):
-        data_tensor = th.tensor(data, dtype=th.float32)
+        data_tensor = th.as_tensor(data, dtype=th.float32)
     else:
         data_tensor = data
 
     if data_tensor.ndim == 2:
-        features, seq_length = data_tensor.shape
-        data_tensor = data_tensor.reshape(1, features, seq_length)
+        data_tensor = data_tensor.unsqueeze(0)  # (1, C, L)
     elif data_tensor.ndim == 1:
-        seq_length = data_tensor.shape[0]
-        data_tensor = data_tensor.reshape(1, 1, seq_length)
+        data_tensor = data_tensor.unsqueeze(0).unsqueeze(0)  # (1, 1, L)
 
     data_tensor = data_tensor.to(device)
-    model = model.to(device)
 
     with th.no_grad():
         logits = model(data_tensor)
