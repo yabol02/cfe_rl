@@ -156,7 +156,10 @@ def create_dqn_agent(
         batch_size=params.get("batch_size", 128),
         tau=params.get("tau", 1),
         gamma=params.get("gamma", 0.99),
-        train_freq=params.get("train_freq", 25),
+        train_freq=(
+            params.get("train_freq", 25),
+            params.get("train_freq_type", "step"),
+        ),
         gradient_steps=params.get("gradient_steps", 1),
         # replay_buffer_class=...,
         # replay_buffer_kwargs=...,
@@ -330,7 +333,7 @@ def evaluate_cfes(cfes, model):
         cfe = data["cfe"]
         label = data["label"]
         mask = data["mask"]
-        proba, pred_class = predict_proba(model, cfe)
+        proba, pred_class = predict_proba(model, cfe, "cuda")
         proba = float(proba[0][1 - label])
         subsequences = num_subsequences(mask)
         changes = l0_norm(mask)

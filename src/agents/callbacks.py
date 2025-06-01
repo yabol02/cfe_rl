@@ -90,7 +90,7 @@ class LossesCallback(BaseCallback):
                 sample = data["sample"]
                 nun = data["nun"]
                 adv_losses.append(
-                    losses.adversarial_loss(cfe, self.label_nun, self.predictor)[0]
+                    losses.adversarial_loss(cfe, self.label_nun, self.predictor, 'cuda')[0]
                 )
                 con_losses.append(losses.contiguity_loss(mask))
                 spa_losses.append(losses.sparsity_loss(mask))

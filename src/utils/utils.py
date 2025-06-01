@@ -224,7 +224,7 @@ def extract_submasks(mask):
     return submasks
 
 
-def load_model(dataset, experiment, mode="best"):
+def load_model(dataset, experiment, mode="best", device="cpu"):
     """
     Loads a trained model from the specified experiment based on the chosen criteria.
 
@@ -233,7 +233,8 @@ def load_model(dataset, experiment, mode="best"):
 
     :param `dataset`: The name of the dataset
     :param `experiment`: The name of the experiment folder within the dataset
-    :param `t`: The criteria for selecting the experiment. Can be 'best', 'random', 'worst', 'median' or an integer index. Default is 'best'
+    :param `mode`: The criteria for selecting the experiment. Can be 'best', 'random', 'worst', 'median' or an integer index. Default is 'best'
+    :param `device`: Where to load the model ("cpu" or "cuda"). Default is "cpu"
     :return `model`: The trained model loaded from the specified experiment
     :raises `ValueError`: If 't' is not one of the valid selection methods or if an invalid index is provided
     """
@@ -258,7 +259,11 @@ def load_model(dataset, experiment, mode="best"):
         raise ValueError(
             "The way to choose an experiment (t) should be one of these: best, random, worst, median or a number."
         )
-    model = th.load(os.path.join(exp_path, exp_hash, "model.pth"), weights_only=False)
+    model = th.load(
+        os.path.join(exp_path, exp_hash, "model.pth"),
+        weights_only=False,
+        map_location=device,
+    )
     return model
 
 

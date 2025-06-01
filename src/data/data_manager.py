@@ -5,7 +5,7 @@ from tslearn.neighbors import KNeighborsTimeSeries
 from ..utils import label_encoder, predict_proba
 
 try:
-    from torch import tensor, nn
+    from torch import tensor, stack, nn
 except ImportError:
     tensor = None
 try:
@@ -330,7 +330,7 @@ class DataManager:
             except ValueError:
                 nuns.append(None)
 
-        return X_samples, y_samples, nuns
+        return X_samples, y_samples, stack(nuns)
 
     def get_shape(self):
         """
