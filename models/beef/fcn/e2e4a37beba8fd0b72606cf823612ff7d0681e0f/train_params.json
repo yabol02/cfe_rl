@@ -1,0 +1,1 @@
+{"experiment_hash": "e2e4a37beba8fd0b72606cf823612ff7d0681e0f", "total_params": 0.265349, "experiment_name": "fcn", "seed": 1, "scaling": "standard", "channels": [128, 256, 128], "kernel_sizes": [8, 5, 3], "batch_size": 64, "learning_rate": 0.001, "epochs": 500, "es_patience": 50, "lr_patience": 15}

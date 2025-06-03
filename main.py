@@ -6,7 +6,7 @@ from src.agents import (
 )
 from src.utils import load_json_params, generate_param_combinations
 
-DATASETS = ["chinatown", "ecg200"]
+DATASETS = ["chinatown", "ecg200", "forda"]
 params_file = "subspace.json"
 
 parameters = load_json_params(f"./params/agents/{params_file}")

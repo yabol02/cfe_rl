@@ -109,6 +109,7 @@ DATASETS = [
 PARAMS_PATH = "params/models/fcn.json"
 
 DATASETS = ["chinatown", "ecg200", "forda"]
+DATASETS = ['beef', 'gunpoint']
 
 if __name__ == "__main__":
     # Load parameters
