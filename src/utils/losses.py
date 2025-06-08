@@ -11,7 +11,7 @@ def adversarial_loss(sample, y_nun, model, device):
     :param `device`: Device where the calculation is performed ("cpu" or "cuda")
     :return `prob`: Probability prediction of the model
     """
-    probabilities, pred_class = predict_proba(model, sample, device)
+    probabilities, pred_class = predict_proba(model, sample)
     prob = probabilities[0, y_nun].item()
     return prob, pred_class
 

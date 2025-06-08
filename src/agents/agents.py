@@ -19,7 +19,12 @@ from stable_baselines3 import PPO, DQN
 
 
 def generate_experiment_hash(
-    dataset: str, experiment: str, algorithm: str, start_time: str, weights_losses: list
+    dataset: str,
+    experiment: str,
+    algorithm: str,
+    start_time: str,
+    weights_losses: list,
+    super_head: bool,
 ) -> str:
     """
     Generates a stable and unique hash to identify the experiment.
@@ -31,9 +36,7 @@ def generate_experiment_hash(
     :param weight_losses: List with the weights of the losses
     :return: String with the hash of the experiment
     """
-    hash_string = (
-        f"{dataset}_{experiment}_{algorithm}_{start_time}_{str(weights_losses)}"
-    )
+    hash_string = f"{dataset}_{experiment}_{algorithm}_{start_time}_{str(weights_losses)}_{super_head}"
     return hashlib.sha256(hash_string.encode()).hexdigest()[:12]
 
 
@@ -55,6 +58,7 @@ def setup_directories(hash_exp: str, params: dict) -> str:
 
 
 def record_experiment_metadata(
+    lock,
     hash_exp: str,
     start_time: str,
     dataset: str,
@@ -92,16 +96,17 @@ def record_experiment_metadata(
         "perc_changes": np.nan,
         "L1": np.nan,
         "L2": np.nan,
-        "valid": np.nan,
+        "improvement_nun": np.nan,
     }
 
-    if os.path.exists(excel_path):
-        df = pd.read_excel(excel_path)
-        df = pd.concat([df, pd.DataFrame([new_entry])], ignore_index=True)
-    else:
-        df = pd.DataFrame([new_entry])
+    with lock:
+        if os.path.exists(excel_path):
+            df = pd.read_excel(excel_path)
+            df = pd.concat([df, pd.DataFrame([new_entry])], ignore_index=True)
+        else:
+            df = pd.DataFrame([new_entry])
 
-    df.to_excel(excel_path, index=False)
+        df.to_excel(excel_path, index=False)
 
 
 def setup_environment(
@@ -129,7 +134,12 @@ def setup_environment(
 
 
 def create_dqn_agent(
-    env, data: DataManager, hash_exp: str, params: dict, super_head: str = None
+    env,
+    data: DataManager,
+    hash_exp: str,
+    params: dict,
+    super_head: str = None,
+    device="auto",
 ):
     """
     Creates a DQN agent with the specified configuration.
@@ -170,7 +180,8 @@ def create_dqn_agent(
         max_grad_norm=params.get("max_grad_norm", 10),
         stats_window_size=params.get("stats_window_size", 100),
         tensorboard_log=f"./results/{hash_exp}",
-        verbose=2,
+        device=device,
+        verbose=0,
     )
     return agent
 
@@ -203,6 +214,7 @@ def build_agent(
     params: dict,
     hash_exp: str,
     super_head: str = None,
+    device: str = "auto",
 ):
     """
     Builds the learning agent according to the specified algorithm.
@@ -216,14 +228,16 @@ def build_agent(
     :return: Agent instance
     """
     if algorithm == "DQN":
-        return create_dqn_agent(env, data, hash_exp, params, super_head)
+        return create_dqn_agent(env, data, hash_exp, params, super_head, device)
     elif algorithm == "PPO":
         return create_ppo_agent(env, data, hash_exp, params, super_head)
     else:
         raise ValueError(f"Algorithm '{algorithm}' not supported")
 
 
-def prepare_experiment(dataset: str, params: dict, dataset_path: str = "./"):
+def prepare_experiment(
+    dataset: str, params: dict, lock, dataset_path: str = "./", device="cpu"
+):
     """
     Main function that prepares all the necessary components for the experiment.
 
@@ -249,56 +263,64 @@ def prepare_experiment(dataset: str, params: dict, dataset_path: str = "./"):
         )
 
     hash_exp = generate_experiment_hash(
-        dataset, experiment, algorithm, start, weights_losses
+        dataset, experiment, algorithm, start, weights_losses, super_head
     )
     setup_directories(hash_exp, params)
     record_experiment_metadata(
-        hash_exp, start, dataset, algorithm, super_head, weights_losses, mapping_mode
+        lock,
+        hash_exp,
+        start,
+        dataset,
+        algorithm,
+        super_head,
+        weights_losses,
+        mapping_mode,
     )
     model = load_model(dataset=dataset, experiment=experiment)
-    data = DataManager(dataset=dataset_path, model=model, scaling=scaling)
+    data = DataManager(dataset=dataset_path, model=model, scaling=scaling, device="cpu")
 
     env = setup_environment(data, model, weights_losses, algorithm, mapping_mode)
 
-    agent = build_agent(algorithm, env, data, params, hash_exp, super_head)
+    agent = build_agent(algorithm, env, data, params, hash_exp, super_head, device)
 
     return hash_exp, data, env, agent
 
 
-def save_agent(hash_experiment: str, data: DataManager, agent, environment):
+def save_agent(hash_experiment: str, data: DataManager, agent, environment, lock):
     agent.save(os.path.join("./results/", hash_experiment, "model.zip"))
-    df = pd.read_excel("./results/experiments.xlsx")
-    df.loc[df["hash"] == hash_experiment, "timesteps"] = agent.num_timesteps
-    start_date = datetime.strptime(
-        df[df["hash"] == hash_experiment]["start"].values[0], "%Y-%m-%d %H:%M:%S"
-    )
-    time_elapsed = datetime.now() - start_date
-    time_elapsed = int(time_elapsed.total_seconds())
-    df.loc[df["hash"] == hash_experiment, "total_time"] = (
-        f"{time_elapsed//60}' {time_elapsed%60}\""
-    )
-    samples, labels, nuns = data.get_test_samples()
-    cfes = obtain_cfes(samples, labels, nuns, environment, agent)
-    results = evaluate_cfes(cfes, data.model)
-    results.to_excel(f"./results/{hash_experiment}/cfes_info.xlsx", index=False)
-    for col in [
-        "reward",
-        "step",
-        "proba",
-        "subsequences",
-        "num_changes",
-        "perc_changes",
-        "L1",
-        "L2",
-        "valid",
-    ]:
-        if col in results:
-            mean = results[col].mean()
-            std = results[col].std()
-            value = f"{mean:.2f} ± {std:.2f}"
-            df.loc[df["hash"] == hash_experiment, col] = value
+    with lock:
+        df = pd.read_excel("./results/experiments.xlsx")
+        df.loc[df["hash"] == hash_experiment, "timesteps"] = agent.num_timesteps
+        start_date = datetime.strptime(
+            df[df["hash"] == hash_experiment]["start"].values[0], "%Y-%m-%d %H:%M:%S"
+        )
+        time_elapsed = datetime.now() - start_date
+        time_elapsed = int(time_elapsed.total_seconds())
+        df.loc[df["hash"] == hash_experiment, "total_time"] = (
+            f"{time_elapsed//60}' {time_elapsed%60}\""
+        )
+        samples, labels, nuns = data.get_test_samples()
+        cfes = obtain_cfes(samples, labels, nuns, environment, agent)
+        results = evaluate_cfes(cfes, data.model)
+        results.to_excel(f"./results/{hash_experiment}/cfes_info.xlsx", index=False)
+        for col in [
+            "reward",
+            "step",
+            "proba",
+            "subsequences",
+            "num_changes",
+            "perc_changes",
+            "L1",
+            "L2",
+            "improvement_nun",
+        ]:
+            if col in results:
+                mean = results[col].mean()
+                std = results[col].std()
+                value = f"{mean:.2f} ± {std:.2f}"
+                df.loc[df["hash"] == hash_experiment, col] = value
 
-    df.to_excel("./results/experiments.xlsx", index=False)
+        df.to_excel("./results/experiments.xlsx", index=False)
 
 
 def obtain_cfes(samples, labels, nuns, env, agent):
@@ -320,12 +342,13 @@ def obtain_cfes(samples, labels, nuns, env, agent):
                 "mask": cfe_info["mask"],
                 "step": cfe_info["step"],
                 "reward": cfe_info["reward"],
+                "nun_reward": cfe_info["nun_reward"],
             }
         )
     return cfes
 
 
-def evaluate_cfes(cfes, model):
+def evaluate_cfes(cfes, model, device="cpu"):
     results = list()
     for data in cfes:
         sample = data["sample"]
@@ -333,7 +356,7 @@ def evaluate_cfes(cfes, model):
         cfe = data["cfe"]
         label = data["label"]
         mask = data["mask"]
-        proba, pred_class = predict_proba(model, cfe, "cuda")
+        proba, pred_class = predict_proba(model, cfe)
         proba = float(proba[0][1 - label])
         subsequences = num_subsequences(mask)
         changes = l0_norm(mask)
@@ -342,7 +365,7 @@ def evaluate_cfes(cfes, model):
         )
         l1 = l1_norm(sample, cfe)
         l2 = l2_norm(sample, cfe)
-        valid = int(pred_class != label)
+        improvement = data.get("reward") - data["nun_reward"]
         results.append(
             {
                 "sample": sample,
@@ -356,7 +379,7 @@ def evaluate_cfes(cfes, model):
                 "perc_changes": perc_changes,
                 "L1": l1,
                 "L2": l2,
-                "valid": valid,
+                "improvement_nun": improvement,
             }
         )
     df = pd.DataFrame(results)

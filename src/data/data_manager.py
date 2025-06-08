@@ -33,10 +33,10 @@ class DataManager:
         self.device = device
         self.model = model.to(self.device)
         self.y_train_model = np.asarray(
-            predict_proba(self.model, self.X_train, self.device)[1].cpu()
+            predict_proba(self.model, self.X_train)[1].cpu()
         )
         self.y_test_model = np.asarray(
-            predict_proba(self.model, self.X_test, self.device)[1].cpu()
+            predict_proba(self.model, self.X_test)[1].cpu()
         )
         self.nuns_train, self.nuns_train_distances = self.compute_nuns(
             train=True, preds=True

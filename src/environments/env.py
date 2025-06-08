@@ -28,8 +28,9 @@ class MyEnv(gym.Env):
         self.x2 = self.data.get_nun(self.x1)
         self.mask = np.ones((self.data.get_dim(), self.data.get_len()), dtype=np.bool_)
         self.steps = 0
-        self.last_reward = self.compute_losses(self.x2)
-        self.best_reward = self.last_reward.copy()
+        self.nun_reward = self.compute_losses(self.x2)
+        self.last_reward = self.nun_reward.copy()
+        self.best_reward = self.nun_reward.copy()
         self.best_reward_step = 0
         self.best_reward_mask = self.mask.copy()
         self.observation_space = gym.spaces.Dict(
@@ -242,8 +243,9 @@ class MyEnv(gym.Env):
             else nun
         )
         self.mask = np.ones((self.data.get_dim(), self.data.get_len()), dtype=np.bool_)
-        self.last_reward = self.compute_losses(self.x2)
-        self.best_reward = self.last_reward.copy()
+        self.nun_reward = self.compute_losses(self.x2)
+        self.last_reward = self.nun_reward.copy()
+        self.best_reward = self.nun_reward.copy()
         self.best_reward_step = 0
         self.best_reward_mask = self.mask.copy()
         self.actions_buffer = deque(maxlen=16)
@@ -272,6 +274,7 @@ class MyEnv(gym.Env):
             "reward": self.best_reward,
             "step": self.best_reward_step,
             "mask": self.best_reward_mask,
+            "nun_reward": self.nun_reward,
         }
 
     def save_results(self, def_name=f"exp_{datetime.now().strftime('%Y-%m-%d_%H:%M')}"):

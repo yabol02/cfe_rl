@@ -20,18 +20,20 @@ def compute_cfe(mask: np.ndarray, x1: np.ndarray, x2: np.ndarray):
     return np.where(mask, x2, x1)
 
 
-def predict_proba(model, data, device):
+def predict_proba(model, data):
     """
     Predicts the class probabilities and the predicted class for the given data using the model.
 
-    The function performs preprocessing on the input data, passes it through the model, and returns the probabilities for each class as well as the predicted class.
+    The function performs preprocessing on the input data, passes it through the model, and returns
+    the probabilities for each class as well as the predicted class.
 
     :param `model`: The trained model used for making predictions.
     :param `data`: The input data (either as a tensor or a numpy array) for which predictions are made.
-    :param `device`: The device ('cpu' or 'cuda') on which the model and data should be processed.
     :return `probabilities`: A tensor containing class probabilities for the input data
     :return `predicted_class`: The index of the class with the highest probability
     """
+    device = next(model.parameters()).device
+
     if isinstance(data, np.ndarray):
         data_tensor = th.as_tensor(data, dtype=th.float32)
     else:
@@ -68,12 +70,14 @@ def num_subsequences(mask: np.ndarray) -> int:
 
 def find_diferences(mask, x1, x2):
     """
-    Find the positions where the mask changes from 0 to 1 or from 1 to 0 and calculate the distances between the CFE and the other signal.
+    Find the positions where the mask changes from 0 to 1 or from 1 to 0 and calculate the distances 
+    between the CFE and the other signal.
 
     :param `mask`: Boolean array used to select between elements of x1 and x2.
     :param `x1`: Array of values to select when the mask is False.
     :param `x2`: Array of values to select when the mask is True.
-    :return `diferences`: List of differences between the CFE and the corresponding values in x1 or x2 at positions where changes occur in the mask.
+    :return `diferences`: List of differences between the CFE and the corresponding values in x1 or x2 
+                          at positions where changes occur in the mask.
     """
     x1 = np.asarray(x1)
     x2 = np.asarray(x2)
@@ -229,11 +233,13 @@ def load_model(dataset, experiment, mode="best", device="cpu"):
     Loads a trained model from the specified experiment based on the chosen criteria.
 
     This function loads a model from the specified dataset and experiment folder.
-    The experiment can be selected based on various criteria: 'best', 'random', 'worst', 'median', or an integer index to choose a specific experiment.
+    The experiment can be selected based on various criteria: 'best', 'random', 'worst', 'median', or an 
+    integer index to choose a specific experiment.
 
     :param `dataset`: The name of the dataset
     :param `experiment`: The name of the experiment folder within the dataset
-    :param `mode`: The criteria for selecting the experiment. Can be 'best', 'random', 'worst', 'median' or an integer index. Default is 'best'
+    :param `mode`: The criteria for selecting the experiment. Can be 'best', 'random', 'worst', 'median' 
+                   or an integer index. Default is 'best'
     :param `device`: Where to load the model ("cpu" or "cuda"). Default is "cpu"
     :return `model`: The trained model loaded from the specified experiment
     :raises `ValueError`: If 't' is not one of the valid selection methods or if an invalid index is provided
