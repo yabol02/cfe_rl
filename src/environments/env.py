@@ -15,6 +15,7 @@ class MyEnv(gym.Env):
         dataset: DataManager,
         model,
         weights_losses=None,
+        ones_mask=True,
         experiment_name=None,
         device="cuda",
     ):
@@ -26,7 +27,11 @@ class MyEnv(gym.Env):
         self.weights = self.compute_weights(weights_losses)
         self.x1 = self.data.get_sample()
         self.x2 = self.data.get_nun(self.x1)
-        self.mask = np.ones((self.data.get_dim(), self.data.get_len()), dtype=np.bool_)
+        self.mask = (
+            np.ones((self.data.get_dim(), self.data.get_len()), dtype=np.bool_)
+            if ones_mask
+            else np.zeros((self.data.get_dim(), self.data.get_len()), dtype=np.bool_)
+        )
         self.steps = 0
         self.nun_reward = self.compute_losses(self.x2)
         self.last_reward = self.nun_reward.copy()
@@ -228,6 +233,7 @@ class MyEnv(gym.Env):
         self,
         sample=None,
         nun=None,
+        ones_mask=True,
         train=True,
         seed=None,
         save_res=False,
@@ -242,7 +248,11 @@ class MyEnv(gym.Env):
             if nun is None
             else nun
         )
-        self.mask = np.ones((self.data.get_dim(), self.data.get_len()), dtype=np.bool_)
+        self.mask = (
+            np.ones((self.data.get_dim(), self.data.get_len()), dtype=np.bool_)
+            if ones_mask
+            else np.zeros((self.data.get_dim(), self.data.get_len()), dtype=np.bool_)
+        )
         self.nun_reward = self.compute_losses(self.x2)
         self.last_reward = self.nun_reward.copy()
         self.best_reward = self.nun_reward.copy()
@@ -297,6 +307,7 @@ class DiscreteEnv(MyEnv):
         dataset,
         model,
         weights_losses=None,
+        ones_mask=True,
         experiment_name=None,
         device="cuda",
         **kwargs,

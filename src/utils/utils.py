@@ -132,7 +132,7 @@ def l2_norm(x1: tp.Union[np.ndarray, list], x2: tp.Union[np.ndarray, list]) -> f
     return np.linalg.norm(x1 - x2, ord=2)
 
 
-def plot_signal(X, X2, mask, ax, title=None):
+def plot_signal(X, X2, mask, ax, title=None, plot_nun=True):
     """
     Plots three versions of a time series signal:
     - The original signal (in blue)
@@ -179,7 +179,8 @@ def plot_signal(X, X2, mask, ax, title=None):
     mod = X.copy()
     mod[mask] = X2[mask]
     ax.clear()
-    ax.plot(X2_flat, c="k", label="NUN")
+    if plot_nun:
+        ax.plot(X2_flat, c="k", label="NUN")
     ax.plot(X_flat, c="b", label="Original")
     ax.plot(mod.flatten(), c="r", label="CFE")
 

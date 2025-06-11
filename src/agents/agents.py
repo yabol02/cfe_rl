@@ -25,6 +25,7 @@ def generate_experiment_hash(
     start_time: str,
     weights_losses: list,
     super_head: bool,
+    ones_mask: bool,
 ) -> str:
     """
     Generates a stable and unique hash to identify the experiment.
@@ -36,7 +37,7 @@ def generate_experiment_hash(
     :param weight_losses: List with the weights of the losses
     :return: String with the hash of the experiment
     """
-    hash_string = f"{dataset}_{experiment}_{algorithm}_{start_time}_{str(weights_losses)}_{super_head}"
+    hash_string = f"{dataset}_{experiment}_{algorithm}_{start_time}_{str(weights_losses)}_{super_head}_{ones_mask}"
     return hashlib.sha256(hash_string.encode()).hexdigest()[:12]
 
 
@@ -64,6 +65,7 @@ def record_experiment_metadata(
     dataset: str,
     algorithm: str,
     super_head: str,
+    ones_mask: bool,
     weights_losses: list,
     mapping_mode: str = None,
 ) -> None:
@@ -84,6 +86,7 @@ def record_experiment_metadata(
         "dataset": dataset,
         "algorithm": algorithm,
         "super_head": True if super_head else False,
+        # "ones_mask": True if ones_mask else False,
         "weights_losses": str(weights_losses),
         "mode": mapping_mode,
         "timesteps": 0,
@@ -110,7 +113,7 @@ def record_experiment_metadata(
 
 
 def setup_environment(
-    data, model, weights_losses, algorithm: str, mapping_mode: str = None
+    data, model, weights_losses, ones_mask, algorithm: str, mapping_mode: str = None
 ):
     """
     Sets up the learning environment according to the algorithm and mapping mode.
@@ -123,9 +126,9 @@ def setup_environment(
     :return: Environment instance
     """
     if algorithm in ["DQN"]:
-        env = DiscreteEnv(data, model, weights_losses)
+        env = DiscreteEnv(data, model, weights_losses, ones_mask)
     else:
-        env = MyEnv(data, model, weights_losses)
+        env = MyEnv(data, model, weights_losses, ones_mask)
 
     if mapping_mode is not None:
         env = FlatToStartStepWrapper(env, N=data.get_len(), mode=mapping_mode)
@@ -253,6 +256,7 @@ def prepare_experiment(
     mapping_mode = params.get("mapping_mode")
     super_head = params.get("super_head")
     super_head = dataset if super_head is not None else None
+    ones_mask = params.get("ones_mask", True)
     dataset_path = os.path.join(dataset_path, dataset)
     params["dataset_path"] = dataset_path
 
@@ -263,7 +267,7 @@ def prepare_experiment(
         )
 
     hash_exp = generate_experiment_hash(
-        dataset, experiment, algorithm, start, weights_losses, super_head
+        dataset, experiment, algorithm, start, weights_losses, super_head, ones_mask
     )
     setup_directories(hash_exp, params)
     record_experiment_metadata(
@@ -273,13 +277,14 @@ def prepare_experiment(
         dataset,
         algorithm,
         super_head,
+        ones_mask,
         weights_losses,
         mapping_mode,
     )
     model = load_model(dataset=dataset, experiment=experiment)
     data = DataManager(dataset=dataset_path, model=model, scaling=scaling, device="cpu")
 
-    env = setup_environment(data, model, weights_losses, algorithm, mapping_mode)
+    env = setup_environment(data, model, weights_losses, ones_mask, algorithm, mapping_mode)
 
     agent = build_agent(algorithm, env, data, params, hash_exp, super_head, device)
 
@@ -414,6 +419,7 @@ def load_saved_experiment(
     scaling = params.get("scaling", "standard")
     super_head = params.get("super_head")
     super_head = dataset if super_head is not None else None
+    ones_mask = params.get("ones_mask", True)
 
     model_path = os.path.join(results_dir, model_name)
     if not os.path.exists(model_path):
@@ -430,7 +436,7 @@ def load_saved_experiment(
 
     model = load_model(dataset=dataset, experiment=experiment)
     data = DataManager(dataset=dataset_path, model=model, scaling=scaling)
-    env = setup_environment(data, model, weights_losses, algorithm, mapping_mode)
+    env = setup_environment(data, model, weights_losses, ones_mask, algorithm, mapping_mode)
 
     if algorithm == "DQN":
         agent = DQN.load(
