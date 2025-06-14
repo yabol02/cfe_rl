@@ -11,16 +11,18 @@ class CustomFeatureExtractor(BaseFeaturesExtractor):
     def __init__(
         self,
         observation_space: gym.spaces.Dict,
-        features_dim: int = 128,
+        features_dim: int,
         name: str = None,
     ):
-        super(CustomFeatureExtractor, self).__init__(observation_space, features_dim)
-
         input_shape = observation_space.spaces["original"].shape
         input_dims = len(input_shape)
-
         channels = input_shape[input_dims - 2]
         time_steps = input_shape[input_dims - 1]
+
+        super(CustomFeatureExtractor, self).__init__(
+            observation_space,
+            features_dim=features_dim if features_dim is not None else channels,
+        )
 
         self.cnn_extractor = (
             Head1(channels) if name is None else SuperHead1(channels, name)
@@ -53,12 +55,12 @@ class CustomACPolicy(ActorCriticPolicy):
         action_space: gym.spaces.Space,
         lr_schedule: tp.Callable[[float], float],
         mask_shape,
-        map_function,
+        # map_function,
         *args,
         **kwargs
     ):
         self.mask_length = mask_shape[-1]
-        self.map_function = map_function
+        # self.map_function = map_function
         kwargs["ortho_init"] = False  # Disabling orthogonal initialization
         super().__init__(
             observation_space,
@@ -72,11 +74,12 @@ class CustomACPolicy(ActorCriticPolicy):
 
     def _build_mlp_extractor(self) -> None:
         self.mlp_extractor = MLPExtractor(
-            self.features_dim,
+            input_dim=self.features_dim,
             mask_length=self.mask_length,
-            map_function=self.map_function,
-            pi=2,
+            # map_function=self.map_function,
+            pi=1,
             vf=1,
+            shared=self.mask_length,
         )
 
     def forward(
@@ -101,10 +104,9 @@ class CustomACPolicy(ActorCriticPolicy):
         latent_pi, latent_vf = self.mlp_extractor(features)
         values = self.value_net(latent_vf)
         distribution = self._get_action_dist_from_latent(latent_pi)
-        # actions = distribution.get_actions(deterministic=deterministic)
-        action = self.map_function(latent_pi, obs["mask"])
-        log_prob = distribution.log_prob(action.to(dtype=th.int))
-        action = action.reshape((-1, *self.action_space.shape))  # type: ignore[misc]
+        actions = distribution.get_actions(deterministic=deterministic)
+        log_prob = distribution.log_prob(actions)
+        action = actions.reshape((-1, *self.action_space.shape))  # type: ignore[misc]
         return action, values, log_prob
 
 

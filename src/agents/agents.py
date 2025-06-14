@@ -86,7 +86,7 @@ def record_experiment_metadata(
         "dataset": dataset,
         "algorithm": algorithm,
         "super_head": True if super_head else False,
-        # "ones_mask": True if ones_mask else False,
+        "ones_mask": True if ones_mask else False,
         "weights_losses": str(weights_losses),
         "mode": mapping_mode,
         "timesteps": 0,
@@ -125,7 +125,7 @@ def setup_environment(
     :param `mapping_mode`: Mode for the FlatToStartStepWrapper
     :return: Environment instance
     """
-    if algorithm in ["DQN"]:
+    if algorithm in ["DQN", "PPO"]:
         env = DiscreteEnv(data, model, weights_losses, ones_mask)
     else:
         env = MyEnv(data, model, weights_losses, ones_mask)
@@ -152,6 +152,7 @@ def create_dqn_agent(
     :param `hash_exp`: Unique identifier for the experiment
     :param `params`: Dictionary with the experiment parameters
     :param `super_head`: Name of the dataset or None (for super_head configuration)
+    :param `device`: Where to perform the operations. Default is "auto"
     :return `agent`: DQN agent instance
     """
     agent = DQN(
@@ -185,11 +186,14 @@ def create_dqn_agent(
         tensorboard_log=f"./results/{hash_exp}",
         device=device,
         verbose=0,
+        # seed=None,
     )
     return agent
 
 
-def create_ppo_agent(env, data, hash_exp: str, params: dict, super_head: str = None):
+def create_ppo_agent(
+    env, data, hash_exp: str, params: dict, super_head: str = None, device: str = "auto"
+):
     """
     Creates a PPO agent with the specified configuration.
 
@@ -198,14 +202,39 @@ def create_ppo_agent(env, data, hash_exp: str, params: dict, super_head: str = N
     :param `hash_exp`: Unique identifier for the experiment
     :param `params`: Dictionary with the experiment parameters
     :param `super_head`: Name of the dataset or None (for super_head configuration)
+    :param `device`: Where to perform the operations. Default is "auto"
     :return `agent`: PPO agent instance
     """
     agent = PPO(
         policy=CustomACPolicy,
         env=env,
-        # Add here the parameters for PPO
-        verbose=2,
+        policy_kwargs=dict(
+            mask_shape=data.get_len(),
+            input_dim=data.get_len(),
+            super_head=super_head,
+            net_arch=[256, 512],
+        ),
+        learning_rate=params.get("learning_rate", 0.0003),
+        n_steps=params.get("n_steps", 2048),
+        batch_size=params.get("batch_size", 64),
+        n_epochs=params.get("n_epochs", 10),
+        gamma=params.get("gamma", 0.99),
+        gae_lambda=params.get("gae_lambda", 0.95),
+        clip_range=params.get("clip_range", 0.2),
+        # clip_range_vf=None,
+        # normalize_advantage=True,
+        ent_coef=params.get("ent_coef", 0.0),
+        vf_coef=params.get("vf_coef", 0.5),
+        max_grad_norm=params.get("max_grad_norm", 0.5),
+        # use_sde=False,
+        # sde_sample_freq=-1,
+        # rollout_buffer_class=None,
+        # rollout_buffer_kwargs=None,
+        # target_kl=None,
         tensorboard_log=f"./results/{hash_exp}",
+        device=device,
+        verbose=0,
+        # seed=None,
     )
     return agent
 
@@ -284,7 +313,9 @@ def prepare_experiment(
     model = load_model(dataset=dataset, experiment=experiment)
     data = DataManager(dataset=dataset_path, model=model, scaling=scaling, device="cpu")
 
-    env = setup_environment(data, model, weights_losses, ones_mask, algorithm, mapping_mode)
+    env = setup_environment(
+        data, model, weights_losses, ones_mask, algorithm, mapping_mode
+    )
 
     agent = build_agent(algorithm, env, data, params, hash_exp, super_head, device)
 
@@ -436,7 +467,9 @@ def load_saved_experiment(
 
     model = load_model(dataset=dataset, experiment=experiment)
     data = DataManager(dataset=dataset_path, model=model, scaling=scaling)
-    env = setup_environment(data, model, weights_losses, ones_mask, algorithm, mapping_mode)
+    env = setup_environment(
+        data, model, weights_losses, ones_mask, algorithm, mapping_mode
+    )
 
     if algorithm == "DQN":
         agent = DQN.load(

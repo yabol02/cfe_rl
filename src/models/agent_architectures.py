@@ -92,7 +92,7 @@ class DiscreteNetwork(nn.Module):
 
 
 class SharedNetwork(nn.Module):
-    def __init__(self, input_dim=64, output_dim=128, sequence_length=24):
+    def __init__(self, sequence_length, input_dim=64, output_dim=128):
         super(SharedNetwork, self).__init__()
         self.model = nn.Sequential(
             nn.Conv1d(in_channels=input_dim, out_channels=128, kernel_size=3, stride=1),
@@ -102,7 +102,7 @@ class SharedNetwork(nn.Module):
         )
 
     def forward(self, x):
-        return self.model(x)
+        return self.model(x.unsqueeze(1))
 
 
 class PolicyNetwork(nn.Module):
@@ -134,17 +134,25 @@ class ValueNetwork(nn.Module):
 
 
 class MLPExtractor(nn.Module):
-    def __init__(self, input_dim, mask_length, map_function, pi=2, vf=1, shared=128):
+    def __init__(self, input_dim, mask_length, shared, pi=2, vf=1):
         super(MLPExtractor, self).__init__()
+        self.shared_dim = shared
         self.latent_dim_pi = pi
         self.latent_dim_vf = vf
-        self.shared_dim = shared
 
-        self.shared_net = SharedNetwork(input_dim, self.shared_dim, mask_length)
-        self.policy_net = PolicyNetwork(self.shared_dim, self.latent_dim_pi)
-        self.value_net = ValueNetwork(self.shared_dim, self.latent_dim_vf)
+        self.shared_net = SharedNetwork(
+            sequence_length=mask_length,
+            input_dim=input_dim,
+            output_dim=self.shared_dim,
+        )
+        self.policy_net = PolicyNetwork(
+            input_dim=self.shared_dim, output_dim=self.latent_dim_pi
+        )
+        self.value_net = ValueNetwork(
+            input_dim=self.shared_dim, output_dim=self.latent_dim_vf
+        )
 
-        self.map_function = map_function
+        # self.map_function = map_function
 
     def forward(self, x):
         shared_features = self.shared_net(x)

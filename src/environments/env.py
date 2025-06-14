@@ -27,9 +27,10 @@ class MyEnv(gym.Env):
         self.weights = self.compute_weights(weights_losses)
         self.x1 = self.data.get_sample()
         self.x2 = self.data.get_nun(self.x1)
+        self.init_mask = True if ones_mask else False
         self.mask = (
             np.ones((self.data.get_dim(), self.data.get_len()), dtype=np.bool_)
-            if ones_mask
+            if self.init_mask
             else np.zeros((self.data.get_dim(), self.data.get_len()), dtype=np.bool_)
         )
         self.steps = 0
@@ -233,7 +234,6 @@ class MyEnv(gym.Env):
         self,
         sample=None,
         nun=None,
-        ones_mask=True,
         train=True,
         seed=None,
         save_res=False,
@@ -250,7 +250,7 @@ class MyEnv(gym.Env):
         )
         self.mask = (
             np.ones((self.data.get_dim(), self.data.get_len()), dtype=np.bool_)
-            if ones_mask
+            if self.init_mask
             else np.zeros((self.data.get_dim(), self.data.get_len()), dtype=np.bool_)
         )
         self.nun_reward = self.compute_losses(self.x2)
@@ -312,7 +312,9 @@ class DiscreteEnv(MyEnv):
         device="cuda",
         **kwargs,
     ):
-        super().__init__(dataset, model, weights_losses, experiment_name, **kwargs)
+        super().__init__(
+            dataset, model, weights_losses, ones_mask, experiment_name, **kwargs
+        )
         self.action_space = gym.spaces.MultiDiscrete(
             nvec=[self.data.get_len(), self.data.get_len()]
         )  # Other option: start=[0, -self.data.get_len()//2]

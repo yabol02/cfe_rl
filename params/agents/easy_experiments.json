@@ -1,0 +1,30 @@
+{
+    "static":{
+        "experiment": "fcn",
+        "algorithm": "DQN",
+        "scaling": "standard",
+        "ones_mask": false,
+        "timesteps": 100000,
+        "buffer_size": 10000,
+        "learning_starts": 5000,
+        "batch_size": 128,
+        "train_freq": 100,
+        "train_freq_type": "step",
+        "learning_rate": 0.0001,
+        "target_update_interval": 2000,
+        "exploration_fraction": 0.9,
+        "exploration_initial_eps": 0.9,
+        "exploration_final_eps": 0.05
+    },
+    "grid": {
+        "mapping_mode": ["triangular", "steps"],
+        "super_head": [null, true],
+        "gamma": [0, 0.2, 0.5],
+        "weights_losses": [
+            [1, 1, 0, 0],
+            [1, 0, 1, 0],
+            [0, 1, 1, 0],
+            [1, 1, 1, 0]
+        ]
+    }
+}

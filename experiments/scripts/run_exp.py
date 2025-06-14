@@ -11,7 +11,7 @@ from src.data import DataManager
 from src.environments import MyEnv
 from src.agents.components import CustomPolicy
 from stable_baselines3.common.env_checker import check_env
-from stable_baselines3 import PPO, A2C
+from stable_baselines3 import PPO, DQN
 
 exp = "chinatown"
 model = utils.load_model(exp, "fcn")
