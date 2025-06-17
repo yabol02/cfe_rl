@@ -70,13 +70,13 @@ def num_subsequences(mask: np.ndarray) -> int:
 
 def find_diferences(mask, x1, x2):
     """
-    Find the positions where the mask changes from 0 to 1 or from 1 to 0 and calculate the distances 
+    Find the positions where the mask changes from 0 to 1 or from 1 to 0 and calculate the distances
     between the CFE and the other signal.
 
     :param `mask`: Boolean array used to select between elements of x1 and x2.
     :param `x1`: Array of values to select when the mask is False.
     :param `x2`: Array of values to select when the mask is True.
-    :return `diferences`: List of differences between the CFE and the corresponding values in x1 or x2 
+    :return `diferences`: List of differences between the CFE and the corresponding values in x1 or x2
                           at positions where changes occur in the mask.
     """
     x1 = np.asarray(x1)
@@ -180,9 +180,9 @@ def plot_signal(X, X2, mask, ax, title=None, plot_nun=True):
     mod[mask] = X2[mask]
     ax.clear()
     if plot_nun:
-        ax.plot(X2_flat, c="k", label="NUN")
-    ax.plot(X_flat, c="b", label="Original")
-    ax.plot(mod.flatten(), c="r", label="CFE")
+        ax.plot(X2_flat, c="gray", label="NUN", linestyle="--", linewidth=1)
+    ax.plot(X_flat, c="navy", label="Original", linestyle=":", linewidth=1)
+    ax.plot(mod.flatten(), c="r", label="CFE", linestyle="-", linewidth=1)
 
     submasks = extract_submasks(mask)
     for subm in submasks:
@@ -234,12 +234,12 @@ def load_model(dataset, experiment, mode="best", device="cpu"):
     Loads a trained model from the specified experiment based on the chosen criteria.
 
     This function loads a model from the specified dataset and experiment folder.
-    The experiment can be selected based on various criteria: 'best', 'random', 'worst', 'median', or an 
+    The experiment can be selected based on various criteria: 'best', 'random', 'worst', 'median', or an
     integer index to choose a specific experiment.
 
     :param `dataset`: The name of the dataset
     :param `experiment`: The name of the experiment folder within the dataset
-    :param `mode`: The criteria for selecting the experiment. Can be 'best', 'random', 'worst', 'median' 
+    :param `mode`: The criteria for selecting the experiment. Can be 'best', 'random', 'worst', 'median'
                    or an integer index. Default is 'best'
     :param `device`: Where to load the model ("cpu" or "cuda"). Default is "cpu"
     :return `model`: The trained model loaded from the specified experiment
