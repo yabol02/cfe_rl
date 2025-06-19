@@ -299,7 +299,7 @@ class DataManager:
         label = labels[(data == sample).all(dim=2).squeeze()]
         return label
 
-    def get_test_samples(self, label=0, n_samples=100, random_seed=42, k=1):
+    def get_test_samples(self, label=None, n_samples=100, random_seed=42, k=1):
         """
         Returns a fixed set of random samples from the test dataset belonging to a specific class,
         along with their corresponding Nearest Unlike Neighbors (NUNs).
@@ -311,7 +311,11 @@ class DataManager:
         :return: A tuple containing (X_samples, y_samples, nuns) - the samples, their true labels, and their NUNs
         :raises `ValueError`: If no samples with the specified label are found
         """
-        class_indices = np.where(self.y_test_model == label)[0]
+        class_indices = (
+            np.where(self.y_test_model == label)[0]
+            if label is not None
+            else np.arange(len(self.y_test_model))
+        )
 
         if len(class_indices) == 0:
             raise ValueError(f"No samples with label {label} found in the test dataset")
