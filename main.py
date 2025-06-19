@@ -10,7 +10,7 @@ from datetime import datetime
 import torch
 import gc
 
-DATASETS = ["forda"] 
+DATASETS = ["chinatown", "ecg200", "gunpoint", "beef"]
 params_file = "easy_experiments.json"
 
 parameters = load_json_params(f"./params/agents/{params_file}")
@@ -83,7 +83,7 @@ if __name__ == "__main__":
     for idx, (dataset, combo) in enumerate(combos):
         input_queue.put((dataset, combo, lock, idx + 1, total_experiments))
 
-    num_workers = 2
+    num_workers = 3
     processes = []
     for _ in range(num_workers):
         p = mp.Process(target=worker_process, args=(input_queue,))

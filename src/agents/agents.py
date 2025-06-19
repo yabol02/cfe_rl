@@ -321,7 +321,7 @@ def prepare_experiment(
         mapping_mode=mapping_mode,
     )
 
-    load_model(
+    super_head = load_model(
         dataset=dataset,
         experiment="fcn",
         in_channels=data.get_dim(),

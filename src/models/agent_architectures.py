@@ -1,6 +1,5 @@
 import torch as th
 from torch import nn
-from ..utils import load_model
 
 
 class Head1(nn.Module):
@@ -52,11 +51,9 @@ class Head2(nn.Module):
 
 
 class SuperHead1(nn.Module):
-    def __init__(self, input_dim, dataset, experiment="fcn"):
+    def __init__(self, input_dim, super_head, experiment="fcn"):
         super(SuperHead1, self).__init__()
-        self.head = load_model(
-            dataset, experiment
-        ).back_bone  # BE CAREFUL WITH THIS! NOT ALL MODELS WILL HAVE THIS LAYER'S NAME
+        self.head = super_head.back_bone  # BE CAREFUL WITH THIS! NOT ALL MODELS WILL HAVE THIS LAYER'S NAME
         for param in self.head.parameters():
             param.requires_grad = False
         self.learnable_layer = nn.Conv1d(
@@ -163,11 +160,7 @@ class MLPExtractor(nn.Module):
         return policy_output, value_output
 
     def forward_actor(self, features: th.Tensor) -> th.Tensor:
-        logits = self.policy_net(features)
-        new_mask = self.map_function(logits)
-        return new_mask
+        return self.policy_net(features)
 
     def forward_critic(self, features: th.Tensor) -> th.Tensor:
-        shared = self.shared_net(features)
-        pred_critic = self.value_net(shared)
-        return pred_critic
+        return self.value_net(features)

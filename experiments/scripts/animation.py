@@ -20,9 +20,8 @@ def calculate_cfe(x1, x2, mask):
 
 # --- Setup ---
 exp = "ecg200"
-model = load_model(exp, "fcn")
-data = DataManager(f"UCR/{exp}", model, "standard")
-env = DiscreteEnv(data, model)
+data = DataManager(f"UCR/{exp}", "standard")
+env = DiscreteEnv(data, data.model)
 discrete_env = FlatToStartStepWrapper(env, N=data.get_len(), mode="triangular")
 path_model = f"./results/dqn_prueba_{exp}_2.zip"
 agent = DQN.load(path_model)
@@ -70,6 +69,6 @@ plt.show()
 # --- Final info ---
 final_cfe = calculate_cfe(orig, nun, discrete_env.get_actual_mask())
 print(f"Total reward = {total_reward}")
-print(f"CFE proba = {predict_proba(model, final_cfe)[0]}")
+print(f"CFE proba = {predict_proba(data.model, final_cfe)[0]}")
 print(f"% Changes = {l0_norm(discrete_env.get_actual_mask())/discrete_env.get_actual_mask().size}")
 print(f"Nº Subsequences = {num_subsequences(discrete_env.get_actual_mask())}")

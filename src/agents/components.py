@@ -4,7 +4,7 @@ import typing as tp
 from stable_baselines3.common.torch_layers import BaseFeaturesExtractor
 from stable_baselines3.common.policies import ActorCriticPolicy
 from stable_baselines3.dqn import MultiInputPolicy
-from ..models import Head1, SuperHead1, Head2, MLPExtractor
+from ..models import Head1, Head2, MLPExtractor, SuperHead1
 
 
 class CustomFeatureExtractor(BaseFeaturesExtractor):
@@ -12,7 +12,7 @@ class CustomFeatureExtractor(BaseFeaturesExtractor):
         self,
         observation_space: gym.spaces.Dict,
         features_dim: int,
-        name: str = None,
+        super_head: str = None,
     ):
         input_shape = observation_space.spaces["original"].shape
         input_dims = len(input_shape)
@@ -25,7 +25,7 @@ class CustomFeatureExtractor(BaseFeaturesExtractor):
         )
 
         self.cnn_extractor = (
-            Head1(channels) if name is None else SuperHead1(channels, name)
+            Head1(channels) if super_head is None else SuperHead1(channels, super_head)
         )
         self.mlp_extractor = Head2(
             input_dim=3 * channels
@@ -55,7 +55,7 @@ class CustomACPolicy(ActorCriticPolicy):
         action_space: gym.spaces.Space,
         lr_schedule: tp.Callable[[float], float],
         mask_shape,
-        # map_function,
+        super_head: str = None,
         *args,
         **kwargs
     ):
@@ -67,6 +67,7 @@ class CustomACPolicy(ActorCriticPolicy):
             action_space,
             lr_schedule,
             features_extractor_class=CustomFeatureExtractor,
+            features_extractor_kwargs=dict(features_dim=1, name=super_head),
             *args,
             **kwargs,
         )
@@ -77,8 +78,8 @@ class CustomACPolicy(ActorCriticPolicy):
             input_dim=self.features_dim,
             mask_length=self.mask_length,
             # map_function=self.map_function,
-            pi=1,
-            vf=1,
+            pi=self.mask_length,
+            vf=self.mask_length,
             shared=self.mask_length,
         )
 
@@ -127,7 +128,9 @@ class CustomQPolicy(MultiInputPolicy):
             action_space,
             lr_schedule,
             features_extractor_class=CustomFeatureExtractor,
-            features_extractor_kwargs=dict(features_dim=input_dim, name=super_head),
+            features_extractor_kwargs=dict(
+                features_dim=input_dim, super_head=super_head
+            ),
             *args,
             **kwargs,
         )
