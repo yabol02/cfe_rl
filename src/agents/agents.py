@@ -209,13 +209,13 @@ def create_ppo_agent(
         policy=CustomACPolicy,
         env=env,
         policy_kwargs=dict(
-            mask_shape=data.get_len(),
-            input_dim=data.get_len(),
+            mask_shape=data.get_shape(),
+            # input_dim=data.get_len(),
             super_head=super_head,
-            net_arch=[256, 512],
+            # net_arch=[256, 512],
         ),
         learning_rate=params.get("learning_rate", 0.0003),
-        n_steps=params.get("n_steps", 2048),
+        n_steps=params.get("n_steps", 1000),
         batch_size=params.get("batch_size", 64),
         n_epochs=params.get("n_epochs", 10),
         gamma=params.get("gamma", 0.99),
@@ -262,7 +262,7 @@ def build_agent(
     if algorithm == "DQN":
         return create_dqn_agent(env, data, hash_exp, params, super_head, device)
     elif algorithm == "PPO":
-        return create_ppo_agent(env, data, hash_exp, params, super_head)
+        return create_ppo_agent(env, data, hash_exp, params, super_head, device)
     else:
         raise ValueError(f"Algorithm '{algorithm}' not supported")
 
@@ -310,13 +310,24 @@ def prepare_experiment(
         weights_losses,
         mapping_mode,
     )
-    model = load_model(dataset=dataset, experiment=experiment)
-    data = DataManager(dataset=dataset_path, model=model, scaling=scaling, device="cpu")
+    data = DataManager(dataset=dataset_path, scaling=scaling, device="cpu")
 
     env = setup_environment(
-        data, model, weights_losses, ones_mask, algorithm, mapping_mode
+        data=data,
+        model=data.model,
+        weights_losses=weights_losses,
+        ones_mask=ones_mask,
+        algorithm=algorithm,
+        mapping_mode=mapping_mode,
     )
 
+    load_model(
+        dataset=dataset,
+        experiment="fcn",
+        in_channels=data.get_dim(),
+        ts_len=data.get_len(),
+        n_classes=len(np.unique(data.y_train_true)),
+    )
     agent = build_agent(algorithm, env, data, params, hash_exp, super_head, device)
 
     return hash_exp, data, env, agent
@@ -465,10 +476,14 @@ def load_saved_experiment(
             f"Model {model_name} not found. Using {os.path.basename(model_path)} instead."
         )
 
-    model = load_model(dataset=dataset, experiment=experiment)
-    data = DataManager(dataset=dataset_path, model=model, scaling=scaling)
+    data = DataManager(dataset=dataset_path, scaling=scaling)
     env = setup_environment(
-        data, model, weights_losses, ones_mask, algorithm, mapping_mode
+        data=data,
+        model=data.model,
+        weights_losses=weights_losses,
+        ones_mask=ones_mask,
+        algorithm=algorithm,
+        mapping_mode=mapping_mode,
     )
 
     if algorithm == "DQN":
