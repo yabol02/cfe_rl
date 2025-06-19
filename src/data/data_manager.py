@@ -2,10 +2,10 @@ import os
 import typing as tp
 import numpy as np
 from tslearn.neighbors import KNeighborsTimeSeries
-from ..utils import label_encoder, predict_proba
+from ..utils import label_encoder, predict_proba, load_model
 
 try:
-    from torch import tensor, stack, nn
+    from torch import tensor, stack
 except ImportError:
     tensor = None
 try:
@@ -18,7 +18,6 @@ class DataManager:
     def __init__(
         self,
         dataset: str,
-        model: nn.Module,
         scaling: str = "none",
         backend: str = "torch",
         device: str = "cuda",
@@ -27,11 +26,19 @@ class DataManager:
             dataset, scaling, backend
         )
         self.y_train_true, self.y_test_true = label_encoder(y_train, y_test)
-        self.name = dataset.split("/")[-1]
+        self.name = (
+            dataset.split("/")[-1] if "/" in dataset else dataset.split("\\")[-1]
+        )
         self.scaling = scaling
         self.backend = backend
         self.device = device
-        self.model = model.to(self.device)
+        self.model = load_model(
+            dataset=self.name,
+            experiment="FCN",
+            in_channels=self.X_train.shape[1],
+            ts_len=self.X_train.shape[2],
+            n_classes=len(np.unique(self.y_train_true)),
+        ).to(device)
         self.y_train_model = np.asarray(
             predict_proba(self.model, self.X_train)[1].cpu()
         )
@@ -184,7 +191,7 @@ class DataManager:
 
         return nuns, nuns_distances
 
-    def get_sample(self, label=0, index=None, train=True, failed=False):
+    def get_sample(self, label=None, index=None, train=True, failed=False):
         """
         Gets a sample of the data belonging to the class specified by label.
 
@@ -197,10 +204,11 @@ class DataManager:
         """
         data = self.X_train if train else self.X_test
         labels = self.y_train_true if train else self.y_test_true
-        unique_labels = np.unique(labels)
-        if label not in unique_labels:
+        unique_labels = np.unique(labels).tolist()
+        if label is None:
+            label = np.random.choice(unique_labels)
+        elif label not in unique_labels:
             raise ValueError(f"{label} not in labels: {unique_labels.tolist()}")
-
         class_indices = np.where(labels == label)[0]
 
         if index is not None:

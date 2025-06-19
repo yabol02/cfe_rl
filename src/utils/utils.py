@@ -181,7 +181,7 @@ def plot_signal(X, X2, mask, ax, title=None, plot_nun=True):
     ax.clear()
     if plot_nun:
         ax.plot(X2_flat, c="gray", label="NUN", linestyle="--", linewidth=1)
-    ax.plot(X_flat, c="navy", label="Original", linestyle=":", linewidth=1)
+    ax.plot(X_flat, c="b", label="Original", linestyle=":", linewidth=1)
     ax.plot(mod.flatten(), c="r", label="CFE", linestyle="-", linewidth=1)
 
     submasks = extract_submasks(mask)
@@ -227,51 +227,6 @@ def extract_submasks(mask):
             submasks.append([dim, start_idx, mask.shape[-1]])
 
     return submasks
-
-
-def load_model(dataset, experiment, mode="best", device="cpu"):
-    """
-    Loads a trained model from the specified experiment based on the chosen criteria.
-
-    This function loads a model from the specified dataset and experiment folder.
-    The experiment can be selected based on various criteria: 'best', 'random', 'worst', 'median', or an
-    integer index to choose a specific experiment.
-
-    :param `dataset`: The name of the dataset
-    :param `experiment`: The name of the experiment folder within the dataset
-    :param `mode`: The criteria for selecting the experiment. Can be 'best', 'random', 'worst', 'median'
-                   or an integer index. Default is 'best'
-    :param `device`: Where to load the model ("cpu" or "cuda"). Default is "cpu"
-    :return `model`: The trained model loaded from the specified experiment
-    :raises `ValueError`: If 't' is not one of the valid selection methods or if an invalid index is provided
-    """
-    from pandas import read_excel
-
-    exp_path = os.path.join("models", dataset, experiment)
-    df = read_excel(f'{os.path.join(exp_path, "all_results.xlsx")}')
-    if mode == "best":
-        exp_hash = df.experiment_hash.iloc[0]
-    elif mode == "random":
-        exp_hash = df.experiment_hash.sample(n=1).iloc[0]
-    elif mode == "worst":
-        exp_hash = df.experiment_hash.iloc[-1]
-    elif mode == "median":
-        exp_hash = df.experiment_hash.iloc[len(df) // 2]
-    elif mode.isdigit():
-        idx = int(mode)
-        if idx < 0 or idx >= len(df):
-            raise ValueError(f"Index {idx} out of range. Valid range: 0-{len(df)-1}")
-        exp_hash = df.experiment_hash.iloc[idx]
-    else:
-        raise ValueError(
-            "The way to choose an experiment (t) should be one of these: best, random, worst, median or a number."
-        )
-    model = th.load(
-        os.path.join(exp_path, exp_hash, "model.pth"),
-        weights_only=False,
-        map_location=device,
-    )
-    return model
 
 
 def load_json_params(file_path: str) -> dict:

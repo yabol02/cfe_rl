@@ -3,7 +3,7 @@
         "experiment": "fcn",
         "algorithm": "DQN",
         "scaling": "standard",
-        "ones_mask": false,
+        "ones_mask": true,
         "timesteps": 100000,
         "buffer_size": 10000,
         "learning_starts": 5000,
@@ -17,7 +17,7 @@
         "exploration_final_eps": 0.05
     },
     "grid": {
-        "mapping_mode": ["triangular", "steps"],
+        "mapping_mode": ["default", "triangular", "steps", "value"],
         "super_head": [null, true],
         "gamma": [0, 0.2, 0.5],
         "weights_losses": [

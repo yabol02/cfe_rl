@@ -24,25 +24,12 @@ from sklearn.metrics import (
 )
 
 import torch
-from torch import nn
+import tensorflow as tf
+from torch import nn, load
 import torch.nn.functional as F
 from torch.utils.data import DataLoader, TensorDataset
 
-# from models.ResNet import ResNet
 from ..models.FCN import FCN, ElasticFCN, DilatedFCN, DynamicFCN
-
-# from models.DisjointCNN import DisjointCNN
-# from models.DWSCNN import DWSCNN, ElasticDWSCNN, DilatedDWSCNN
-# from models.InceptionTime import InceptionModel, DilatedInceptionModel
-# from models.TapNet import TapNet
-# from models.ProtoPNet import ProtoPNet, ProtoPNetLearner
-# from models.CorrectedProtoPNet import CorrectedProtoPNet, CorrectedProtoPNetLearner
-# from models.PIPNet import PIPNet, get_optimizer_nn, PIPNetLearner
-# from models.ProtoPool import ProtoPool, ProtoPoolLearner
-# from models.ProtoPoolMod import ProtoPoolLearnerMod
-# from models.MultiScaleProto import MultiScaleProto, MultiScaleClassProto, MultiScaleProtoMoE, MultiScaleProtoMoETime, MSConvProtoLearner
-# from models.MultiScaleProto import MultiScaleProtoParts
-# from models.ConvTran import ConvTran, ConvTranLearner, RAdam
 from ..models.learners import BasicLearner
 from torchsummary import summary
 
@@ -310,9 +297,7 @@ def select_best_model(dataset, exp_name):
     )
 
 
-def model_selector(
-    dataset, in_channels, ts_len, n_classes, params, model_type, results_path
-):
+def model_selector(dataset, in_channels, ts_len, n_classes, params):
     # Model trainer
     if "weight_decay" in params:
         weight_decay = params["weight_decay"]
@@ -322,7 +307,7 @@ def model_selector(
     # Select criterion
     try:
         if params["criterion"] == "NLL":
-            criterion = nn.NLLLoss(reduction="mean")
+            criterion = nn.NLLLoss(reduction='mean')
         elif params["criterion"] == "CE":
             criterion = nn.CrossEntropyLoss(reduction="mean")
         else:
@@ -331,541 +316,77 @@ def model_selector(
         criterion = nn.CrossEntropyLoss(reduction="mean")
 
     # Create model and learner
+    model_type = params.get("model_type", "FCN")
     if model_type == "FCN":
         model = FCN(
-            in_channels=in_channels,
-            channels=params["channels"],
-            kernel_sizes=params["kernel_sizes"],
-            num_classes=n_classes,
+            in_channels=in_channels, channels=params["channels"], kernel_sizes=params["kernel_sizes"],
+            num_classes=n_classes
         )
-        optimizer = torch.optim.Adam(
-            model.parameters(), lr=params["learning_rate"], weight_decay=weight_decay
-        )
-        scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
-            optimizer, "min", patience=params["lr_patience"], factor=0.5
-        )
-        trainer = BasicLearner(
-            model,
-            criterion,
-            num_epochs=params["epochs"],
-            es_patience=params["es_patience"],
-        )
-    # elif model_type == "ResNet":
-    #     model = ResNet(
-    #         in_channels=in_channels, mid_channels=params["mid_channels"], kernel_sizes=params["kernel_sizes"],
-    #         num_classes=n_classes
-    #     )
-    #     optimizer = torch.optim.Adam(model.parameters(), lr=params["learning_rate"], weight_decay=weight_decay)
-    #     scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, 'min', patience=params["lr_patience"], factor=0.5)
-    #     trainer = BasicLearner(model, criterion, num_epochs=params["epochs"], es_patience=params["es_patience"])
-    # elif model_type == "InceptionTime":
-    #     model = InceptionModel(
-    #         depth=params["depth"],
-    #         in_channels=in_channels, out_channels=params["out_channels"],
-    #         bottleneck_channels=params["bottleneck_channels"], kernel_sizes=params["kernel_sizes"],
-    #         num_classes=n_classes
-    #     )
-    #     optimizer = torch.optim.Adam(model.parameters(), lr=params["learning_rate"], weight_decay=weight_decay)
-    #     scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, 'min', patience=params["lr_patience"], factor=0.5)
-    #     trainer = BasicLearner(model, criterion, num_epochs=params["epochs"], es_patience=params["es_patience"])
-    # elif model_type == "TapNet":
-    #     model = TapNet(
-    #         nfeat=in_channels, len_ts=ts_len, nclass=n_classes, dropout=params["dropout"],
-    #         filters=params["filters"], kernels=params["kernel_sizes"], dilation=params["dilation"],
-    #         layers=params["layers"],
-    #         use_rp=params["use_rp"], rp_params=params["rp_params"],
-    #         use_att=params["use_att"], use_ss=False, use_metric=False, use_muse=False,
-    #         use_lstm=params["use_lstm"], use_cnn=params["use_cnn"]
-    #     )
-    #     optimizer = torch.optim.Adam(model.parameters(), lr=params["learning_rate"], weight_decay=weight_decay)
-    #     scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, 'min', patience=params["lr_patience"], factor=0.5)
-    #     if n_classes == 2:
-    #         criterion = nn.BCELoss(reduction="mean")
-    #     else:
-    #         criterion = nn.CrossEntropyLoss(reduction="mean")
-    #     trainer = BasicLearner(model, criterion, num_epochs=params["epochs"], es_patience=params["es_patience"])
-    # elif model_type == "ProtoPNet":
-    #     # Load Backbone
-    #     model_params = {k.replace("back_bone_model_", ""): v for k, v in params.items() if "back_bone_model" in k}
-    #     pretrained_model = infer_model_folder(
-    #         dataset, ts_len, in_channels,
-    #         scaling=params["scaling"], seed=params["seed"],
-    #         model_type=params["back_bone_type"], model_params=model_params)
-    #     back_bone = pretrained_model.back_bone
-    #     model = ProtoPNet(
-    #         ts_len=ts_len, back_bone=back_bone,
-    #         n_prototypes_per_class=params["n_prototypes_per_class"],
-    #         prototype_activation_function=params["prototype_activation_function"],
-    #         prototype_dim=params["prototype_dim"],
-    #         num_classes=n_classes
-    #     )
-    #     # Create optimizer and schedulers
-    #     lr_features_addon_prototype_last = params["lr_features_addon_prototype_last"]
-    #     lr_features = lr_features_addon_prototype_last[0]
-    #     lr_add_on_layers = lr_features_addon_prototype_last[1]
-    #     lr_prototype_vectors = lr_features_addon_prototype_last[2]
-    #     lr_last_layer = lr_features_addon_prototype_last[3]
-    #     joint_optimizer_specs = [
-    #         {'params': model.back_bone.parameters(), 'lr': lr_features, 'weight_decay': weight_decay},
-    #         {'params': model.add_on_layers.parameters(), 'lr': lr_add_on_layers, 'weight_decay': weight_decay},
-    #         {'params': model.prototype_vectors, 'lr': lr_prototype_vectors},
-    #     ]
-    #     joint_optimizer = torch.optim.Adam(joint_optimizer_specs)
-    #     joint_lr_scheduler = torch.optim.lr_scheduler.StepLR(joint_optimizer, step_size=params["lr_joint_step"], gamma=0.1)
-
-    #     last_layer_optimizer_specs = [{'params': model.last_layer.parameters(), 'lr': lr_last_layer}]
-    #     last_layer_optimizer = torch.optim.Adam(last_layer_optimizer_specs)
-    #     last_layer_scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
-    #         last_layer_optimizer, 'min',
-    #         patience=params["lr_patience_last_layer"],
-    #         factor=0.5
-    #     )
-    #     optimizer = {"joint": joint_optimizer, "last_layer": last_layer_optimizer}
-    #     scheduler = {"joint": joint_lr_scheduler, "last_layer": last_layer_scheduler}
-
-    #     coefs = {"crs_ent": params["coefs"][0], "clst": params["coefs"][1], "sep": params["coefs"][2], "l1": params["coefs"][3]}
-    #     push_interval = params["push_interval_last_layer_epochs"][0]
-    #     last_layer_epochs_per_push = params["push_interval_last_layer_epochs"][1]
-    #     trainer = ProtoPNetLearner(
-    #         model, num_epochs=params["epochs"], es_patience=params["es_patience"],
-    #         include_labels_in_forward=False,
-    #         class_specific=params["class_specific"], coefs=coefs, push_start=params["push_start"],
-    #         push_interval=push_interval, last_layer_epochs_per_push=last_layer_epochs_per_push,
-    #     )
-    # elif model_type == "CorrectedProtoPNet":
-    #     back_bone = load_back_bone(params["back_bone_type"], params, dataset)
-    #     model = CorrectedProtoPNet(
-    #         ts_len=ts_len, back_bone=back_bone,
-    #         n_prototypes_per_class=params["n_prototypes_per_class"],
-    #         prototype_activation_function=params["prototype_activation_function"],
-    #         prototype_dim=params["prototype_dim"],
-    #         num_classes=n_classes
-    #     )
-    #     # Create optimizer and schedulers
-    #     lr_features_addon_prototype_actweight = params["lr_features_addon_prototype_actweight"]
-    #     lr_features = lr_features_addon_prototype_actweight[0]
-    #     lr_add_on_layers = lr_features_addon_prototype_actweight[1]
-    #     lr_prototype_vectors = lr_features_addon_prototype_actweight[2]
-    #     lr_activation_weight = lr_features_addon_prototype_actweight[3]
-    #     joint_optimizer_specs = [
-    #         {'params': model.back_bone.parameters(), 'lr': lr_features, 'weight_decay': weight_decay},
-    #         {'params': model.add_on_layers.parameters(), 'lr': lr_add_on_layers, 'weight_decay': weight_decay},
-    #         {'params': model.prototype_vectors, 'lr': lr_prototype_vectors},
-    #         {'params': model.activation_weight, 'lr': lr_activation_weight},
-    #     ]
-    #     joint_optimizer = torch.optim.Adam(joint_optimizer_specs)
-    #     joint_lr_scheduler = torch.optim.lr_scheduler.StepLR(joint_optimizer, step_size=params["lr_joint_step"], gamma=0.1)
-
-    #     optimizer = {"joint": joint_optimizer}
-    #     scheduler = {"joint": joint_lr_scheduler}
-
-    #     coefs = {"crs_ent": params["coefs"][0], "orth": params["coefs"][1], "clst": params["coefs"][2], "sep": params["coefs"][3]}
-    #     trainer = CorrectedProtoPNetLearner(
-    #         model, num_epochs=params["epochs"], es_patience=params["es_patience"],
-    #         include_labels_in_forward=False,
-    #         coefs=coefs,
-    #     )
-    # elif model_type == "ProtoPool":
-    #     # Load Backbone
-    #     model_params = {k.replace("back_bone_model_", ""): v for k, v in params.items() if "back_bone_model" in k}
-    #     pretrained_model = infer_model_folder(
-    #         dataset, ts_len, in_channels,
-    #         scaling=params["scaling"], seed=params["seed"],
-    #         model_type=params["back_bone_type"], model_params=model_params)
-    #     back_bone = pretrained_model.back_bone
-    #     model = ProtoPool(
-    #         ts_len, back_bone,
-    #         num_prototypes=params["num_prototypes"], num_descriptive=params["num_descriptive"],
-    #         proto_depth=params["proto_depth"], prototype_activation_function=params["prototype_activation_function"],
-    #         use_last_layer=params["use_last_layer"],
-    #         num_classes=n_classes
-    #     )
-
-    #     joint_optimizer = torch.optim.Adam(
-    #         [{'params': model.features.parameters(), 'lr': params["lr"] / 10, 'weight_decay': weight_decay},
-    #          {'params': model.add_on_layers.parameters(), 'lr': 3 * params["lr"], 'weight_decay': weight_decay},
-    #          {'params': model.proto_presence, 'lr': 3 * params["lr"]},
-    #          {'params': model.prototype_vectors, 'lr': 3 * params["lr"]}]
-    #     )
-    #     joint_scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
-    #         joint_optimizer, 'min', patience=params["lr_patience_joint"], factor=0.5)
-    #     push_optimizer = torch.optim.Adam(
-    #         [{'params': model.last_layer.parameters(), 'lr': params["lr"] / 10, 'weight_decay': weight_decay}])
-    #     push_scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
-    #         push_optimizer, 'min', patience=params["lr_patience_last_layer"], factor=0.5)
-    #     optimizer = {"joint": joint_optimizer, "push": push_optimizer}
-    #     scheduler = {"joint": joint_scheduler, "push": push_scheduler}
-
-    #     trainer = ProtoPoolLearner(
-    #         model, num_epochs=params["epochs"], es_patience=params["es_patience"],
-    #         include_labels_in_forward=False,
-    #         start_val=params["start_val"], end_val=params["end_val"],
-    #         gumbel_time=params["gumbel_time"], pp_gumbel=params["pp_gumbel"],
-    #         class_specific=params["class_specific"], mixup_data_bool=params["mixup_data_bool"], criterion=criterion,
-    #         pp_ortho=params["pp_ortho"], cls_weight=params["cls_weight"], sep_weight=params["sep_weight"],
-    #         proto_es_patience=params["proto_es_patience"], fine_tuning_epochs=params["fine_tuning_epochs"]
-    #     )
-    # elif model_type == "ProtoPoolMod":
-    #     # Load Backbone
-    #     model_params = {k.replace("back_bone_model_", ""): v for k, v in params.items() if "back_bone_model" in k}
-    #     pretrained_model = infer_model_folder(
-    #         dataset, ts_len, in_channels,
-    #         scaling=params["scaling"], seed=params["seed"],
-    #         model_type=params["back_bone_type"], model_params=model_params)
-    #     back_bone = pretrained_model.back_bone
-    #     model = ProtoPool(
-    #         ts_len, back_bone,
-    #         num_prototypes=params["num_prototypes"], num_descriptive=params["num_descriptive"],
-    #         proto_depth=params["proto_depth"], prototype_activation_function=params["prototype_activation_function"],
-    #         use_last_layer=params["use_last_layer"],
-    #         num_classes=n_classes
-    #     )
-
-    #     lr_features_addon_prototype_last = params["lr_features_addon_prototype_last"]
-    #     lr_features = lr_features_addon_prototype_last[0]
-    #     lr_add_on_layers = lr_features_addon_prototype_last[1]
-    #     lr_prototype_vectors = lr_features_addon_prototype_last[2]
-    #     lr_last_layer = lr_features_addon_prototype_last[3]
-    #     joint_optimizer = torch.optim.Adam(
-    #         [{'params': model.features.parameters(), 'lr': lr_features, 'weight_decay': weight_decay},
-    #          {'params': model.add_on_layers.parameters(), 'lr': lr_add_on_layers, 'weight_decay': weight_decay},
-    #          {'params': model.proto_presence, 'lr': lr_prototype_vectors},
-    #          {'params': model.prototype_vectors, 'lr': lr_prototype_vectors}]
-    #     )
-    #     joint_scheduler = torch.optim.lr_scheduler.StepLR(joint_optimizer, step_size=params["lr_joint_step"], gamma=0.1)
-
-    #     push_optimizer_specs = [{'params': model.last_layer.parameters(), 'lr': lr_last_layer}]
-    #     push_optimizer = torch.optim.Adam(push_optimizer_specs)
-    #     push_scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
-    #         push_optimizer, 'min',
-    #         patience=params["lr_patience_last_layer"],
-    #         factor=0.5
-    #     )
-    #     optimizer = {"joint": joint_optimizer, "push": push_optimizer}
-    #     scheduler = {"joint": joint_scheduler, "push": push_scheduler}
-
-    #     push_interval = params["push_interval_last_layer_epochs"][0]
-    #     last_layer_epochs_per_push = params["push_interval_last_layer_epochs"][1]
-    #     trainer = ProtoPoolLearnerMod(
-    #         model, num_epochs=params["epochs"], es_patience=params["es_patience"],
-    #         include_labels_in_forward=False,
-    #         start_val=params["start_val"], end_val=params["end_val"],
-    #         gumbel_time=params["gumbel_time"], pp_gumbel=params["pp_gumbel"],
-    #         class_specific=params["class_specific"], mixup_data_bool=params["mixup_data_bool"], criterion=criterion,
-    #         pp_ortho=params["pp_ortho"], cls_weight=params["cls_weight"], sep_weight=params["sep_weight"],
-    #         push_start=params["push_start"],
-    #         push_interval=push_interval, last_layer_epochs_per_push=last_layer_epochs_per_push,
-    #     )
-    # elif model_type == "PIPNet":
-    #     # Load Backbone
-    #     model_params = {k.replace("back_bone_model_", ""): v for k, v in params.items() if "back_bone_model" in k}
-    #     pretrained_model = infer_model_folder(
-    #         dataset, ts_len, in_channels,
-    #         scaling=params["scaling"], seed=params["seed"],
-    #         model_type=params["back_bone_type"], model_params=model_params)
-    #     back_bone = pretrained_model.back_bone
-    #     model = PIPNet(
-    #         ts_len=ts_len,
-    #         back_bone=back_bone, num_prototypes=params["num_prototypes"], cls_bias=params["cls_bias"],
-    #         num_classes=n_classes
-    #     )
-
-    #     # Optimizer and scheduler are create inside fit method for PIPNet
-    #     lr_last_block_net = params["lr_last_block_net"]
-    #     lr = lr_last_block_net[0]
-    #     lr_block = lr_last_block_net[1]
-    #     lr_net = lr_last_block_net[2]
-    #     if params["lr_scheduler"] == "cosine":
-    #         optimizer, scheduler = None, None
-    #     elif params["lr_scheduler"] == "val_loss":
-    #         optimizer_net, optimizer_classifier, _, _, _ = get_optimizer_nn(
-    #             model, lr_net, lr_block, lr, params["weight_decay"], params["cls_bias"])
-    #         scheduler_net = torch.optim.lr_scheduler.ReduceLROnPlateau(
-    #             optimizer_net, 'min', patience=params["lr_patience"], factor=0.5)
-    #         scheduler_classifier = torch.optim.lr_scheduler.ReduceLROnPlateau(
-    #             optimizer_net, 'min', patience=params["lr_patience"], factor=0.5)
-    #         optimizer = {"net": optimizer_net, "classifier": optimizer_classifier}
-    #         scheduler = {"net": scheduler_net, "classifier": scheduler_classifier}
-    #     else:
-    #         raise ValueError("Not valid lr_scheduler")
-
-    #     # Define trainer
-    #     trainer = PIPNetLearner(
-    #         model,  criterion,
-    #         num_epochs=params["epochs"], es_patience=params["es_patience"],
-    #         include_labels_in_forward=False,
-    #         epochs_pretrain=params["epochs_pretrain"], epochs_to_finetune=params["epochs_to_finetune"], freeze_epochs=params["freeze_epochs"],
-    #         lr_net=lr_net, lr_block=lr_block, lr=lr,
-    #         weight_decay=weight_decay, cls_bias=params["cls_bias"],
-    #         data_augmentation=params["data_augmentation"]
-    #     )
-    elif model_type == "ElasticFCN":
-        model = ElasticFCN(
-            in_channels=in_channels,
-            channels=params["channels"],
-            kernel_sizes=params["kernel_sizes"],
-            kernel_scales=params["kernel_scales"],
-            pool_type=params["pool_type"],
-            num_classes=n_classes,
-        )
-        optimizer = torch.optim.Adam(
-            model.parameters(), lr=params["learning_rate"], weight_decay=weight_decay
-        )
-        scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
-            optimizer, "min", patience=params["lr_patience"], factor=0.5
-        )
-        trainer = BasicLearner(
-            model,
-            criterion,
-            num_epochs=params["epochs"],
-            es_patience=params["es_patience"],
-        )
-    elif model_type == "DilatedFCN":
-        model = DilatedFCN(
-            in_channels=in_channels,
-            channels=params["channels"],
-            kernel_sizes=params["kernel_sizes"],
-            dilations=params["dilations"],
-            pool_type=params["pool_type"],
-            num_classes=n_classes,
-        )
-        optimizer = torch.optim.Adam(
-            model.parameters(), lr=params["learning_rate"], weight_decay=weight_decay
-        )
-        scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
-            optimizer, "min", patience=params["lr_patience"], factor=0.5
-        )
-        trainer = BasicLearner(
-            model,
-            criterion,
-            num_epochs=params["epochs"],
-            es_patience=params["es_patience"],
-        )
-    # elif model_type == "DisjointCNN":
-    #     model = DisjointCNN(
-    #         in_channels=in_channels, channels=params["channels"], kernel_sizes=params["kernel_sizes"],
-    #         num_classes=n_classes
-    #     )
-    #     optimizer = torch.optim.Adam(model.parameters(), lr=params["learning_rate"], weight_decay=weight_decay)
-    #     scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, 'min', patience=params["lr_patience"], factor=0.5)
-    #     trainer = BasicLearner(model, criterion, num_epochs=params["epochs"], es_patience=params["es_patience"])
-    elif model_type == "DynamicFCN":
-        model = DynamicFCN(
-            in_channels=in_channels,
-            channels=params["channels"],
-            kernel_sizes=params["kernel_sizes"],
-            num_classes=n_classes,
-        )
-        optimizer = torch.optim.Adam(
-            model.parameters(), lr=params["learning_rate"], weight_decay=weight_decay
-        )
-        scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
-            optimizer, "min", patience=params["lr_patience"], factor=0.5
-        )
-        trainer = BasicLearner(
-            model,
-            criterion,
-            num_epochs=params["epochs"],
-            es_patience=params["es_patience"],
-        )
-    # elif model_type == "DWSCNN":
-    #     model = DWSCNN(
-    #         in_channels=in_channels, channels=params["channels"], kernel_sizes=params["kernel_sizes"],
-    #         include_bn_relu=params["include_bn_relu"],
-    #         num_classes=n_classes
-    #     )
-    #     optimizer = torch.optim.Adam(model.parameters(), lr=params["learning_rate"], weight_decay=weight_decay)
-    #     scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, 'min', patience=params["lr_patience"], factor=0.5)
-    #     trainer = BasicLearner(model, criterion, num_epochs=params["epochs"], es_patience=params["es_patience"])
-    # elif model_type == "ElasticDWSCNN":
-    #     model = ElasticDWSCNN(
-    #         in_channels=in_channels, channels=params["channels"], kernel_sizes=params["kernel_sizes"],
-    #         include_bn_relu=params["include_bn_relu"],
-    #         kernel_scales=params["kernel_scales"], pool_type=params["pool_type"], num_classes=n_classes
-    #     )
-    #     optimizer = torch.optim.Adam(model.parameters(), lr=params["learning_rate"], weight_decay=weight_decay)
-    #     scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, 'min', patience=params["lr_patience"], factor=0.5)
-    #     trainer = BasicLearner(model, criterion, num_epochs=params["epochs"], es_patience=params["es_patience"])
-    # elif model_type == "DilatedDWSCNN":
-    #     model = DilatedDWSCNN(
-    #         in_channels=in_channels, channels=params["channels"], kernel_sizes=params["kernel_sizes"],
-    #         include_bn_relu=params["include_bn_relu"],
-    #         dilations=params["dilations"], pool_type=params["pool_type"], num_classes=n_classes
-    #     )
-    #     optimizer = torch.optim.Adam(model.parameters(), lr=params["learning_rate"], weight_decay=weight_decay)
-    #     scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, 'min', patience=params["lr_patience"], factor=0.5)
-    #     trainer = BasicLearner(model, criterion, num_epochs=params["epochs"], es_patience=params["es_patience"])
-    # elif model_type == "DilatedInception":
-    #     out_channels = params["out_channels_bottleneck_channels"][0]
-    #     bottleneck_channels = params["out_channels_bottleneck_channels"][1]
-    #     model = DilatedInceptionModel(
-    #         depth=params["depth"],
-    #         in_channels=in_channels, out_channels=out_channels,
-    #         bottleneck_channels=bottleneck_channels, kernel_sizes=params["kernel_sizes"],
-    #         dilations=params["dilations"], pool_type=params["pool_type"],
-    #         num_classes=n_classes
-    #     )
-    #     optimizer = torch.optim.Adam(model.parameters(), lr=params["learning_rate"], weight_decay=weight_decay)
-    #     scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, 'min', patience=params["lr_patience"], factor=0.5)
-    #     trainer = BasicLearner(model, criterion, num_epochs=params["epochs"], es_patience=params["es_patience"])
-    # elif model_type == "MSProto":
-    #     # Load Backbone
-    #     back_bone = load_back_bone(params["back_bone_type"], params, dataset)
-    #     model = MultiScaleProto(
-    #         ts_len, back_bone,
-    #         params["num_prototypes_per_layer"], params["activation"], params["ms_activation"],
-    #         params["entropy_temp_weighting"],
-    #         max_pool_time=params["pre_att_max_pool_time"], embedding_dim=params["pre_att_embedding_dim"],
-    #         att_type=params["att_type"], att_dropout=params["att_dropout"],
-    #         final_pool_op=params["final_pool_op"],
-    #         num_classes=n_classes
-    #     )
-    #     optimizer = torch.optim.Adam(model.parameters(), lr=params["learning_rate"], weight_decay=weight_decay)
-    #     scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, 'min', patience=params["lr_patience"], factor=0.5)
-
-    #     plot_proto_info = True if params["seed"] == 0 else False
-    #     trainer = MSConvProtoLearner(
-    #         model, criterion, num_epochs=params["epochs"], es_patience=params["es_patience"],
-    #         include_labels_in_forward=False, k=3, l1_mult=params["l1_mult"],
-    #         plot_proto_info=False, save_dir=results_path
-    #     )
-    # elif model_type == "MSClassProto":
-    #     # Load Backbone
-    #     back_bone = load_back_bone(params["back_bone_type"], params, dataset)
-    #     model = MultiScaleClassProto(
-    #         ts_len, back_bone,
-    #         params["num_prototypes_per_class_layer"], params["activation"], params["ms_activation"],
-    #         params["entropy_temp_weighting"],
-    #         max_pool_time=params["pre_att_max_pool_time"], embedding_dim=params["pre_att_embedding_dim"],
-    #         att_type=params["att_type"], att_dropout=params["att_dropout"],
-    #         final_pool_op=params["final_pool_op"],
-    #         num_classes=n_classes
-    #     )
-    #     optimizer = torch.optim.Adam(model.parameters(), lr=params["learning_rate"], weight_decay=weight_decay)
-    #     scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, 'min', patience=params["lr_patience"], factor=0.5)
-
-    #     plot_proto_info = True if params["seed"] == 0 else False
-    #     trainer = MSConvProtoLearner(
-    #         model, criterion, num_epochs=params["epochs"], es_patience=params["es_patience"],
-    #         include_labels_in_forward=False, k=3, l1_mult=None,
-    #         plot_proto_info=False, save_dir=results_path
-    #     )
-    # elif model_type == "MSProtoMoE":
-    #     # Load Backbone
-    #     back_bone = load_back_bone(params["back_bone_type"], params, dataset)
-    #     model = MultiScaleProtoMoE(
-    #         ts_len, back_bone,
-    #         params["num_prototypes_per_layer"], params["activation"], params["ms_activation"],
-    #         params["entropy_temp_weighting"],
-    #         num_experts=n_classes, num_selected_protos=params["num_selected_protos"], top_k=params["top_k"],
-    #         max_pool_time=params["pre_att_max_pool_time"], embedding_dim=params["pre_att_embedding_dim"],
-    #         att_type=params["att_type"], att_dropout=params["att_dropout"],
-    #         final_pool_op=params["final_pool_op"],
-    #         num_classes=n_classes
-    #     )
-    #     optimizer = torch.optim.Adam(model.parameters(), lr=params["learning_rate"], weight_decay=weight_decay)
-    #     scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, 'min', patience=params["lr_patience"],
-    #                                                            factor=0.5)
-
-    #     plot_proto_info = True if params["seed"] == 0 else False
-    #     trainer = MSConvProtoLearner(
-    #         model, criterion, num_epochs=params["epochs"], es_patience=params["es_patience"],
-    #         include_labels_in_forward=False, k=3, l1_mult=None,
-    #         plot_proto_info=False, save_dir=results_path
-    #     )
-    # elif model_type == "MSProtoMoETime":
-    #     # Load Backbone
-    #     back_bone = load_back_bone(params["back_bone_type"], params, dataset)
-    #     model = MultiScaleProtoMoETime(
-    #         ts_len, back_bone,
-    #         params["num_prototypes_per_layer"], params["activation"], params["ms_activation"],
-    #         params["entropy_temp_weighting"],
-    #         num_experts=n_classes, num_selected_protos=params["num_selected_protos"], top_k=params["top_k"],
-    #         max_pool_time=params["pre_att_max_pool_time"], embedding_dim=params["pre_att_embedding_dim"],
-    #         att_type=params["att_type"], att_dropout=params["att_dropout"],
-    #         final_pool_op=params["final_pool_op"],
-    #         num_classes=n_classes
-    #     )
-    #     optimizer = torch.optim.Adam(model.parameters(), lr=params["learning_rate"], weight_decay=weight_decay)
-    #     scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, 'min', patience=params["lr_patience"],
-    #                                                            factor=0.5)
-
-    #     plot_proto_info = True if params["seed"] == 0 else False
-    #     trainer = MSConvProtoLearner(
-    #         model, criterion, num_epochs=params["epochs"], es_patience=params["es_patience"],
-    #         include_labels_in_forward=False, k=3, l1_mult=None,
-    #         plot_proto_info=False, save_dir=results_path
-    #     )
-    # elif model_type == "MSProtoParts":
-    #     # Load Backbone
-    #     model_params = {k.replace("back_bone_model_", ""): v for k, v in params.items() if "back_bone_model" in k}
-    #     pretrained_model = infer_model_folder(
-    #         dataset, ts_len, in_channels,
-    #         scaling=params["scaling"], seed=params["seed"],
-    #         model_type=params["back_bone_type"], model_params=model_params)
-    #     back_bone = pretrained_model.back_bone
-    #     model = MultiScaleProtoParts(
-    #         ts_len, back_bone,
-    #         n_prototypes_per_layer_class=params["n_prototypes_per_layer_class"],
-    #         prototype_activation_function=params["prototype_activation_function"],
-    #         prototype_dim=params["prototype_dim"],
-    #         num_classes=n_classes
-    #     )
-    #     if params["learner"] == "basic":
-    #         optimizer = torch.optim.Adam(model.parameters(), lr=params["learning_rate"], weight_decay=weight_decay)
-    #         scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, 'min', patience=params["lr_patience"], factor=0.5)
-    #         trainer = BasicLearner(model, criterion, num_epochs=params["epochs"], es_patience=params["es_patience"])
-    #     elif params["learner"] == "protop":
-    #         lr_features_addon_prototype_last = params["lr_prototype_last"]
-    #         lr_prototypes = lr_features_addon_prototype_last[0]
-    #         lr_last_layer = lr_features_addon_prototype_last[1]
-    #         joint_optimizer_specs = [
-    #             {'params': model.prototype_blocks.parameters(), 'lr': lr_prototypes},
-    #         ]
-    #         joint_optimizer = torch.optim.Adam(joint_optimizer_specs)
-    #         joint_lr_scheduler = torch.optim.lr_scheduler.StepLR(joint_optimizer, step_size=params["lr_joint_step"],
-    #                                                              gamma=0.1)
-
-    #         last_layer_optimizer_specs = [{'params': model.last_layer.parameters(), 'lr': lr_last_layer}]
-    #         last_layer_optimizer = torch.optim.Adam(last_layer_optimizer_specs)
-    #         last_layer_scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
-    #             last_layer_optimizer, 'min',
-    #             patience=params["lr_patience_last_layer"],
-    #             factor=0.5
-    #         )
-    #         optimizer = {"joint": joint_optimizer, "last_layer": last_layer_optimizer}
-    #         scheduler = {"joint": joint_lr_scheduler, "last_layer": last_layer_scheduler}
-
-    #         coefs = {"crs_ent": params["coefs"][0], "clst": params["coefs"][1], "sep": params["coefs"][2], "l1": params["coefs"][3]}
-    #         push_interval = params["push_interval_last_layer_epochs"][0]
-    #         last_layer_epochs_per_push = params["push_interval_last_layer_epochs"][1]
-    #         trainer = ProtoPNetLearner(
-    #             model, num_epochs=params["epochs"], es_patience=params["es_patience"],
-    #             include_labels_in_forward=False,
-    #             class_specific=params["class_specific"], coefs=coefs, push_start=params["push_start"],
-    #             push_interval=push_interval, last_layer_epochs_per_push=last_layer_epochs_per_push,
-    #         )
-
-    #     else:
-    #         raise NotImplementedError
-    # elif model_type == "ConvTran":
-    #     model = ConvTran(
-    #         in_channels=in_channels, ts_len=ts_len,
-    #         kernel_size=params["kernel_size"], emb_size=params["emb_size"], num_heads=params["num_heads"],
-    #         dim_ff=params["dim_ff"], dropout=params["dropout"],
-    #         num_classes=n_classes
-    #     )
-    #     optimizer = RAdam(model.parameters(), lr=params["learning_rate"], weight_decay=weight_decay)
-    #     scheduler = None
-
-    #     trainer = ConvTranLearner(
-    #         model, num_epochs=params["epochs"], es_patience=params["es_patience"],
-    #         include_labels_in_forward=False, l2_reg=params["l2_reg"]
-    #     )
+        optimizer = torch.optim.Adam(model.parameters(), lr=params["learning_rate"], weight_decay=weight_decay)
+        scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, 'min', patience=params["lr_patience"], factor=0.5)
+        trainer = BasicLearner(model, criterion, num_epochs=params["epochs"], es_patience=params["es_patience"])
     else:
         raise ValueError("Not valid model type")
 
     return model, optimizer, scheduler, trainer
+
+def load_model(
+    dataset,
+    experiment,
+    in_channels,
+    ts_len,
+    n_classes,
+    mode="best",
+    device="cpu",
+):
+    """
+    Loads a trained model from the specified experiment based on the chosen criteria.
+
+    This function loads a model from the specified dataset and experiment folder.
+    The experiment can be selected based on various criteria: 'best', 'random', 'worst', 'median', or an
+    integer index to choose a specific experiment.
+
+    :param `dataset`: The name of the dataset
+    :param `experiment`: The name of the experiment folder within the dataset
+    :param `mode`: The criteria for selecting the experiment. Can be 'best', 'random', 'worst', 'median'
+                   or an integer index. Default is 'best'
+    :param `device`: Where to load the model ("cpu" or "cuda"). Default is "cpu"
+    :return `model`: The trained model loaded from the specified experiment
+    :raises `ValueError`: If 't' is not one of the valid selection methods or if an invalid index is provided
+    """
+    from pandas import read_excel
+
+    exp_path = os.path.join("models", dataset, experiment)
+    df = read_excel(f'{os.path.join(exp_path, "all_results.xlsx")}')
+    if mode == "best":
+        exp_hash = df.experiment_hash.iloc[0]
+    elif mode == "random":
+        exp_hash = df.experiment_hash.sample(n=1).iloc[0]
+    elif mode == "worst":
+        exp_hash = df.experiment_hash.iloc[-1]
+    elif mode == "median":
+        exp_hash = df.experiment_hash.iloc[len(df) // 2]
+    elif mode.isdigit():
+        idx = int(mode)
+        if idx < 0 or idx >= len(df):
+            raise ValueError(f"Index {idx} out of range. Valid range: 0-{len(df)-1}")
+        exp_hash = df.experiment_hash.iloc[idx]
+    else:
+        raise ValueError(
+            "The way to choose an experiment (t) should be one of these: best, random, worst, median or a number."
+        )
+
+    model_folder = os.path.join(exp_path, exp_hash)
+    with open(f"{model_folder}/train_params.json") as f:
+        train_params = json.load(f)
+    model, _, _, _ = model_selector(
+        dataset, in_channels, ts_len, n_classes, train_params
+    )
+    model_weights = load(os.path.join(model_folder, "model.pth"), weights_only=True)
+    model.load_state_dict(model_weights)
+    # model_wrapper = ModelWrapper(model, "torch")
+    # model_wrapper.to(device)
+    return model
 
 
 def load_back_bone(back_bone_type, params, dataset):
@@ -962,7 +483,7 @@ def train_experiment(dataset, exp_name, exp_hash, params, model_type):
     print(classification_report(y_test, predicted_test_labels))
 
     # Export model
-    torch.save(model, f"{results_path}/model.pth")
+    torch.save(model.state_dict(), f"{results_path}/model.pth")
 
     # Export training params
     pytorch_total_params = sum(p.numel() for p in model.parameters())
@@ -1013,3 +534,46 @@ def train_experiment(dataset, exp_name, exp_hash, params, model_type):
     training_history[["train_loss", "val_loss"]].plot(ax=ax1)
     # pd.DataFrame(training_history.history)[['acc', 'val_acc']].plot(ax=ax2)
     plt.savefig(f"{results_path}/loss_curve.png")
+
+class ModelWrapper:
+    def __init__(self, model, backend):
+        self.model = model
+        self.backend = backend.lower()
+
+        # Prepare for backend
+        if self.backend == "torch":
+            self.framework = torch
+            self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+            self.model.to(self.device)
+            self.model.eval()
+        elif self.backend == "tf":
+            self.framework = tf
+        else:
+            raise ValueError("Unsupported backend: choose 'torch' or 'tf'.")
+
+    def predict(self, x: np.ndarray, input_data_format="tf") -> np.ndarray:
+        assert input_data_format in ["tf", "torch"]
+
+        # Append
+        if len(x.shape) == 2:
+            x = np.expand_dims(x, axis=0)
+        if self.backend == "torch":
+            if input_data_format == "tf":
+                # Swap axes: from (B, T, F) to (B, F, T)
+                x = np.transpose(x, (0, 2, 1))
+            x_tensor = torch.tensor(x, dtype=torch.float32).to(self.device)
+            with torch.no_grad():
+                output = self.model(x_tensor)
+                output = torch.nn.functional.softmax(output, dim=1)
+            return output.detach().cpu().numpy()
+
+        elif self.backend == "tf":
+            if input_data_format == "torch":
+                # Swap axes: from (B, F, T) to (B, T, F)
+                x = np.transpose(x, (0, 2, 1))
+            x_tensor = tf.convert_to_tensor(x, dtype=tf.float32)
+            output = self.model.predict(x_tensor, verbose=0)
+            return output
+        
+    def to(self, device):
+        self.model = self.model.to(device)

@@ -28,9 +28,8 @@ def calculate_cfe(x1, x2, mask):
 
 
 exp = "ecg200"
-model = load_model(exp, "fcn")
-data = DataManager(f"UCR/{exp}", model, "standard")
-env = DiscreteEnv(data, model)
+data = DataManager(f"UCR/{exp}", "standard")
+env = DiscreteEnv(data, data.model)
 env = FlatToStartStepWrapper(env, N=data.get_len(), mode="triangular")
 
 
@@ -73,7 +72,7 @@ for n in range(n_episodes):
         plt.pause(1 / fps)
 
     print(f"Episode {n+1}) Total reward = {total_reward}")
-    print(f"CFE proba = {predict_proba(model, new)[0]}")
+    print(f"CFE proba = {predict_proba(data.model, new)[0]}")
     print(f"L0 = {l0_norm(env.get_actual_mask())}")
     print(f"Nº Subsequences = {num_subsequences(env.get_actual_mask())}")
     input("Continue...\n")
