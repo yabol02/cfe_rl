@@ -88,7 +88,7 @@ def record_experiment_metadata(
         "super_head": True if super_head else False,
         "ones_mask": True if ones_mask else False,
         "weights_losses": str(weights_losses),
-        "mode": mapping_mode,
+        "mapping_mode": mapping_mode,
         "timesteps": 0,
         "total_time": np.nan,
         "reward": np.nan,
@@ -100,6 +100,7 @@ def record_experiment_metadata(
         "L1": np.nan,
         "L2": np.nan,
         "improvement_nun": np.nan,
+        "valid": np.nan,
     }
 
     with lock:
@@ -360,6 +361,7 @@ def save_agent(hash_experiment: str, data: DataManager, agent, environment, lock
             "L1",
             "L2",
             "improvement_nun",
+            "valid",
         ]:
             if col in results:
                 mean = results[col].mean()
@@ -386,6 +388,7 @@ def obtain_cfes(samples, labels, nuns, env, agent):
                 "nun": nun,
                 "cfe": cfe,
                 "label": label,
+                "nun_label": cfe_info["nun_label"],
                 "mask": cfe_info["mask"],
                 "step": cfe_info["step"],
                 "reward": cfe_info["reward"],
@@ -401,10 +404,10 @@ def evaluate_cfes(cfes, model, device="cpu"):
         sample = data["sample"]
         nun = data["nun"]
         cfe = data["cfe"]
-        label = data["label"]
+        nun_label = data["nun_label"]
         mask = data["mask"]
         proba, pred_class = predict_proba(model, cfe)
-        proba = float(proba[0][1 - label])
+        proba = float(proba[0][nun_label])
         subsequences = num_subsequences(mask)
         changes = l0_norm(mask)
         perc_changes = (
@@ -413,6 +416,7 @@ def evaluate_cfes(cfes, model, device="cpu"):
         l1 = l1_norm(sample, cfe)
         l2 = l2_norm(sample, cfe)
         improvement = data.get("reward") - data["nun_reward"]
+        valid = True if pred_class == nun_label else False
         results.append(
             {
                 "sample": sample,
@@ -427,6 +431,7 @@ def evaluate_cfes(cfes, model, device="cpu"):
                 "L1": l1,
                 "L2": l2,
                 "improvement_nun": improvement,
+                "valid": valid,
             }
         )
     df = pd.DataFrame(results)

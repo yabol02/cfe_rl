@@ -285,6 +285,7 @@ class MyEnv(gym.Env):
             "step": self.best_reward_step,
             "mask": self.best_reward_mask,
             "nun_reward": self.nun_reward,
+            "nun_label": self.data.get_predicted_label(self.x2),
         }
 
     def save_results(self, def_name=f"exp_{datetime.now().strftime('%Y-%m-%d_%H:%M')}"):
