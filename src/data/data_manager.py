@@ -203,7 +203,7 @@ class DataManager:
         :raises `ValueError`: If there is no data for the specified class or if the index is out of bounds
         """
         data = self.X_train if train else self.X_test
-        labels = self.y_train_true if train else self.y_test_true
+        labels = self.y_train_model if train else self.y_test_model
         unique_labels = np.unique(labels).tolist()
         if label is None:
             label = np.random.choice(unique_labels)
@@ -212,8 +212,8 @@ class DataManager:
         class_indices = np.where(labels == label)[0]
 
         if index is not None:
-            if labels[index] != label:
-                raise ValueError(f"Index {index} not found in class {label}")
+            if labels[index] not in unique_labels:
+                raise ValueError(f"Index {index} not found in classes {unique_labels}")
             sample = data[index]
             return sample
 
@@ -304,7 +304,7 @@ class DataManager:
         Returns a fixed set of random samples from the test dataset belonging to a specific class,
         along with their corresponding Nearest Unlike Neighbors (NUNs).
 
-        :param `label`: The class label for which to get samples, default is 0
+        :param `label`: The class label for which to get samples (default: None (all classes))
         :param `n_samples`: Number of samples to return (default: 100)
         :param `random_seed`: Random seed to ensure reproducibility (default: 42)
         :param `k`: The k-th nearest unlike neighbor to return (default: 1)

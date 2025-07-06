@@ -16,6 +16,7 @@ from ..utils import (
 )
 from datetime import datetime
 from stable_baselines3 import PPO, DQN
+from stable_baselines3.common.env_util import make_vec_env
 
 
 def generate_experiment_hash(
@@ -114,7 +115,13 @@ def record_experiment_metadata(
 
 
 def setup_environment(
-    data, model, weights_losses, ones_mask, algorithm: str, mapping_mode: str = None
+    data,
+    model,
+    weights_losses,
+    ones_mask,
+    algorithm: str,
+    mapping_mode: str = None,
+    mp: bool = False,
 ):
     """
     Sets up the learning environment according to the algorithm and mapping mode.
@@ -134,6 +141,23 @@ def setup_environment(
     if mapping_mode is not None:
         env = FlatToStartStepWrapper(env, N=data.get_len(), mode=mapping_mode)
 
+    if mp:
+        env = make_vec_env(
+            DiscreteEnv,
+            n_envs=8,
+            wrapper_class=FlatToStartStepWrapper if mapping_mode is not None else None,
+            env_kwargs=dict(
+                dataset=data,
+                model=model,
+                weights_losses=weights_losses,
+                ones_mask=ones_mask,
+            ),
+            wrapper_kwargs=(
+                dict(N=data.get_len(), mode=mapping_mode)
+                if mapping_mode is not None
+                else None
+            ),
+        )
     return env
 
 
@@ -211,7 +235,7 @@ def create_ppo_agent(
         env=env,
         policy_kwargs=dict(
             mask_shape=data.get_shape(),
-            # input_dim=data.get_len(),
+            input_dim=data.get_len(),
             super_head=super_head,
             # net_arch=[256, 512],
         ),
@@ -278,7 +302,7 @@ def prepare_experiment(
     :param `params`: Dictionary with the experiment parameters
     :return: Tuple with (hash_exp, data, env, agent)
     """
-    start = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    start = datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")
     experiment = params.get("experiment", "fcn")
     scaling = params.get("scaling", "standard")
     algorithm = params.get("algorithm")
@@ -303,7 +327,7 @@ def prepare_experiment(
     record_experiment_metadata(
         lock,
         hash_exp,
-        start,
+        start.split(".")[0],
         dataset,
         algorithm,
         super_head,
@@ -320,6 +344,7 @@ def prepare_experiment(
         ones_mask=ones_mask,
         algorithm=algorithm,
         mapping_mode=mapping_mode,
+        mp=False
     )
 
     super_head = load_model(

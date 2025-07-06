@@ -132,7 +132,7 @@ def l2_norm(x1: tp.Union[np.ndarray, list], x2: tp.Union[np.ndarray, list]) -> f
     return np.linalg.norm(x1 - x2, ord=2)
 
 
-def plot_signal(X, X2, mask, ax, title=None, plot_nun=True):
+def plot_signal(X, X2, mask, ax, title=None, plot_nun=True, legend=True, changes=None):
     """
     Plots three versions of a time series signal:
     - The original signal (in blue)
@@ -184,6 +184,15 @@ def plot_signal(X, X2, mask, ax, title=None, plot_nun=True):
     ax.plot(X_flat, c="b", label="Original", linestyle=":", linewidth=1)
     ax.plot(mod.flatten(), c="r", label="CFE", linestyle="-", linewidth=1)
 
+    if changes is not None:
+        start, size = changes
+        ax.axvspan(
+            start-1,
+            start + size-1,
+            color="green",
+            alpha=0.3,
+        )
+
     submasks = extract_submasks(mask)
     for subm in submasks:
         dim, x, y = subm  # In the future we will have more dimensions
@@ -194,7 +203,9 @@ def plot_signal(X, X2, mask, ax, title=None, plot_nun=True):
             alpha=0.1,
         )
 
-    ax.legend(loc="upper left", fontsize="x-small")
+    if legend:
+        ax.legend(loc="upper left", fontsize="x-small")
+
     ax.set_title(f"CFE{f' - {title}' if title else ''}", fontsize=14, fontweight="bold")
 
 

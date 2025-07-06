@@ -9,9 +9,10 @@ from itertools import product
 from datetime import datetime
 import torch
 import gc
+import time
 
-DATASETS = ["chinatown", "ecg200", "gunpoint", "beef"]
-params_file = "easy_experiments.json"
+DATASETS = ["beef"]  #"chinatown", "ecg200", "gunpoint",
+params_file = "exp3_plausibility.json"
 
 parameters = load_json_params(f"./params/agents/{params_file}")
 combinations = generate_param_combinations(parameters)
@@ -83,9 +84,10 @@ if __name__ == "__main__":
     for idx, (dataset, combo) in enumerate(combos):
         input_queue.put((dataset, combo, lock, idx + 1, total_experiments))
 
-    num_workers = 3
+    num_workers = 2
     processes = []
     for _ in range(num_workers):
+        time.sleep(1)
         p = mp.Process(target=worker_process, args=(input_queue,))
         p.start()
         processes.append(p)

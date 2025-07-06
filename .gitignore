@@ -1,4 +1,5 @@
 __pycache__/
 results/
-old_experiments/
+old_results/
 .vscode/
+algorithms/

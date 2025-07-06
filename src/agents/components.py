@@ -55,6 +55,7 @@ class CustomACPolicy(ActorCriticPolicy):
         action_space: gym.spaces.Space,
         lr_schedule: tp.Callable[[float], float],
         mask_shape,
+        input_dim: int,
         super_head: str = None,
         *args,
         **kwargs
@@ -67,7 +68,10 @@ class CustomACPolicy(ActorCriticPolicy):
             action_space,
             lr_schedule,
             features_extractor_class=CustomFeatureExtractor,
-            features_extractor_kwargs=dict(features_dim=1, name=super_head),
+            features_extractor_kwargs=dict(
+                features_dim=1,  # Why 1? This must be `features_dim=input_dim` like in CustomQPolicy. TODO: fix this
+                super_head=super_head,
+            ),
             *args,
             **kwargs,
         )

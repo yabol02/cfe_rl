@@ -1,0 +1,33 @@
+{
+    "static": {
+        "experiment": "fcn",
+        "algorithm": "PPO",
+        "scaling": "standard",
+        "ones_mask": true,
+        "timesteps": 100000,
+        "learning_rate": 3e-4,
+        "n_steps": 512,
+        "batch_size": 128,
+        "gae_lambda": 0.95,
+        "clip_range": 0.2,
+        "ent_coef": 0.01,
+        "vf_coef": 0.5,
+        "max_grad_norm": 0.5,
+        "n_epochs": 5,
+        "weights_losses": [1, 1, 1, 0],
+        "super_head": true
+    },
+    "grid": {
+        "mapping_mode": [
+            "default",
+            "steps"
+        ],
+        "gamma": [
+            0,
+            0.2,
+            0.5,
+            0.7,
+            0.99
+        ]
+    }
+}

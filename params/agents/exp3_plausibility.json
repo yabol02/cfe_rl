@@ -1,5 +1,5 @@
 {
-    "static":{
+    "static": {
         "experiment": "fcn",
         "algorithm": "DQN",
         "scaling": "standard",
@@ -14,17 +14,18 @@
         "target_update_interval": 2000,
         "exploration_fraction": 0.9,
         "exploration_initial_eps": 0.9,
-        "exploration_final_eps": 0.05
+        "exploration_final_eps": 0.05,
+        "super_head": true,
+        "weights_losses": [1, 1, 1, 1]
     },
     "grid": {
-        "mapping_mode": ["default", "triangular", "steps", "value"],
-        "super_head": [null, true],
-        "gamma": [0.7, 0.99],
-        "weights_losses": [
-            [1, 1, 0, 0],
-            [1, 0, 1, 0],
-            [0, 1, 1, 0],
-            [1, 1, 1, 0]
+        "mapping_mode": [
+            "default",
+            "steps"
+        ],
+        "gamma": [
+            0.5,
+            0.7
         ]
     }
 }
